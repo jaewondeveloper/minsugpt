@@ -114,32 +114,14 @@ $shell = @'
 </body>
 </html>
 '@
-$shell | Set-Content (Join-Path $root 'index.html') -Encoding UTF8
+$utf8NoBom = New-Object System.Text.UTF8Encoding $false
+[System.IO.File]::WriteAllText((Join-Path $root 'index.html'), $shell, $utf8NoBom)
 
-# 404 page
-$notFound = @'
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MinsuGPT</title>
-  <style>
-    body { margin:0; min-height:100vh; display:grid; place-items:center; font-family:"Google Sans",sans-serif; background:#fff; }
-    .card { text-align:center; padding:24px; }
-    a { display:inline-block; margin-top:12px; padding:10px 16px; border-radius:999px; background:#111; color:#fff; text-decoration:none; }
-  </style>
-</head>
-<body>
-  <main class="card">
-    <h1>404</h1>
-    <p>페이지를 찾을 수 없습니다.</p>
-    <a href="app/index.html">MinsuGPT 열기</a>
-  </main>
-</body>
-</html>
-'@
-$notFound | Set-Content (Join-Path $root '404.html') -Encoding UTF8
+# 404 page (keep in sync with 404.html — UTF-8 without BOM)
+$notFoundPath = Join-Path $root '404.html'
+if (-not (Test-Path $notFoundPath)) {
+  throw 'Missing 404.html template in repo root'
+}
 
 '' | Set-Content (Join-Path $root '.nojekyll') -Encoding UTF8
 

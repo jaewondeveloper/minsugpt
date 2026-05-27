@@ -2,19 +2,96 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>MinsuGPT</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:ital,opsz,wght@0,17..18,400..700;1,17..18,400..700&display=swap" rel="stylesheet">
   <style>
-    body { margin:0; min-height:100vh; display:grid; place-items:center; font-family:"Google Sans",sans-serif; background:#fff; }
-    .card { text-align:center; padding:24px; }
-    a { display:inline-block; margin-top:12px; padding:10px 16px; border-radius:999px; background:#111; color:#fff; text-decoration:none; }
+    :root {
+      --grad-c1: #cfe1ff;
+      --grad-c2: #ffd9ea;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      font-family: 'Google Sans', sans-serif;
+      letter-spacing: -0.015em;
+      color: #111111;
+      overflow: hidden;
+    }
+    body {
+      position: relative;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background:
+        radial-gradient(circle at 38% 30%, var(--grad-c1) 0%, transparent 54%),
+        radial-gradient(circle at 68% 62%, var(--grad-c2) 0%, transparent 52%),
+        linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    }
+    body::after {
+      content: '';
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 28%;
+      pointer-events: none;
+      z-index: 0;
+      background:
+        linear-gradient(90deg, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 16%),
+        linear-gradient(270deg, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 16%),
+        radial-gradient(72% 64% at 22% 100%, var(--grad-c1) 0%, transparent 72%),
+        radial-gradient(70% 62% at 54% 100%, var(--grad-c2) 0%, transparent 72%),
+        radial-gradient(68% 60% at 84% 100%, #e4d7ff 0%, transparent 72%);
+      background-repeat: no-repeat;
+      background-size: 100% 100%, 100% 100%, 120% 100%, 120% 100%, 120% 100%;
+      background-position: 0% 100%, 100% 100%, 0% 100%, 50% 100%, 100% 100%;
+      -webkit-mask-image: linear-gradient(to top, rgba(0,0,0,0.98) 0%, rgba(0,0,0,0.5) 55%, rgba(0,0,0,0) 100%);
+      mask-image: linear-gradient(to top, rgba(0,0,0,0.98) 0%, rgba(0,0,0,0.5) 55%, rgba(0,0,0,0) 100%);
+    }
+    .card {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      padding: 32px 28px;
+      max-width: 360px;
+      width: 100%;
+    }
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(48px, 12vw, 64px);
+      font-weight: 400;
+      line-height: 1;
+      letter-spacing: -0.03em;
+    }
+    p {
+      margin: 0 0 20px;
+      font-size: 15px;
+      color: #374151;
+      line-height: 1.5;
+    }
+    a {
+      display: inline-block;
+      padding: 11px 20px;
+      border-radius: 999px;
+      background: #111111;
+      color: #ffffff;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    a:hover { opacity: 0.9; }
   </style>
 </head>
 <body>
   <main class="card">
     <h1>404</h1>
-    <p>?섏씠吏瑜?李얠쓣 ???놁뒿?덈떎.</p>
-    <a href="app/index.html">MinsuGPT ?닿린</a>
+    <p>페이지를 찾을 수 없습니다.</p>
+    <a href="app/">MinsuGPT 열기</a>
   </main>
 </body>
 </html>
