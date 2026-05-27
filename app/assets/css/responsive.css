@@ -106,6 +106,17 @@
       #chat-messages.chat-active {
         padding-top: 56px !important;
       }
+      #main-panel.welcome-mode {
+        padding-top: 52px;
+      }
+      .user-msg-wrap .user-actions {
+        display: none !important;
+      }
+      .msg-user {
+        -webkit-touch-callout: none;
+        user-select: text;
+        touch-action: manipulation;
+      }
       #history-scroll {
         max-height: min(50vh, 420px) !important;
       }
@@ -200,34 +211,12 @@
       #sidebar .history-item {
         border-radius: 9999px;
       }
-      #main-panel.welcome-mode {
-        justify-content: center;
-        background:
-          radial-gradient(circle at var(--grad-x1, 40%) var(--grad-y1, 32%), var(--grad-c1, #cfe1ff) 0%, transparent 54%),
-          radial-gradient(circle at var(--grad-x2, 66%) var(--grad-y2, 64%), var(--grad-c2, #ffd9ea) 0%, transparent 52%),
-          linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
-      }
-      #main-panel.chat-mode {
-        justify-content: flex-start;
-        background: #ffffff;
-      }
-      #main-panel.welcome-mode::after {
-        opacity: 0;
-      }
-      #main-panel.chat-mode::after {
-        opacity: 1;
-      }
       #main-panel.welcome-mode #welcome-block {
-        flex: 0 0 auto;
         margin: 0 0 16px 0;
-        position: relative;
-        z-index: 20;
       }
       #main-panel.welcome-mode #input-box {
         transform: translateY(0);
         margin-bottom: 0;
-        position: relative;
-        z-index: 10;
       }
       #main-panel.chat-mode #input-box {
         transform: translateY(0);

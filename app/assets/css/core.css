@@ -22,6 +22,32 @@
       position: relative;
       z-index: 1;
     }
+    #main-panel.welcome-mode {
+      justify-content: center;
+      background:
+        radial-gradient(circle at var(--grad-x1, 40%) var(--grad-y1, 32%), var(--grad-c1, #cfe1ff) 0%, transparent 54%),
+        radial-gradient(circle at var(--grad-x2, 66%) var(--grad-y2, 64%), var(--grad-c2, #ffd9ea) 0%, transparent 52%),
+        linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    }
+    #main-panel.chat-mode {
+      justify-content: flex-start;
+      background: #ffffff;
+    }
+    #main-panel.welcome-mode::after {
+      opacity: 0;
+    }
+    #main-panel.chat-mode::after {
+      opacity: 1;
+    }
+    #main-panel.welcome-mode #welcome-block {
+      flex: 0 0 auto;
+      position: relative;
+      z-index: 20;
+    }
+    #main-panel.welcome-mode #input-box {
+      position: relative;
+      z-index: 10;
+    }
     #main-panel::after {
       content: '';
       position: absolute;
@@ -318,6 +344,52 @@
     }
     .user-msg-wrap:not(.latest-user) .user-action-edit {
       display: none;
+    }
+    .user-message-menu {
+      position: fixed;
+      z-index: 10020;
+      min-width: 132px;
+      padding: 6px;
+      border-radius: 14px;
+      background: #ffffff;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      box-shadow: 0 8px 28px rgba(15, 23, 42, 0.14);
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(0.96) translateY(4px);
+      transition: opacity 0.16s ease, transform 0.16s ease;
+    }
+    .user-message-menu.show {
+      opacity: 1;
+      pointer-events: auto;
+      transform: scale(1) translateY(0);
+    }
+    .user-message-menu-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 10px;
+      border-radius: 10px;
+      font-size: 13px;
+      color: #111;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      text-align: left;
+    }
+    .user-message-menu-btn:hover {
+      background: rgba(0, 0, 0, 0.06);
+    }
+    .user-message-menu-btn.danger {
+      color: #dc2626;
+    }
+    .user-message-menu-btn.danger:hover {
+      background: rgba(220, 38, 38, 0.1);
+    }
+    .msg-user.is-press-target {
+      transform: scale(0.98);
+      transition: transform 0.12s ease;
     }
     .user-action-btn {
       width: 24px;

@@ -1,7 +1,90 @@
 ﻿if (!window.__MINSUGPT_BOOT__) {
   throw new Error("MinsuGPT: load app/index.html ??this module cannot run alone.");
 }
-function attachUserActions(wrap, bubble) {
+let userMessageMenuTarget = null;
+    const userMessageMenu = document.getElementById('user-message-menu');
+
+    function closeUserMessageMenu() {
+      if (!userMessageMenu) return;
+      userMessageMenu.classList.remove('show');
+      userMessageMenuTarget = null;
+    }
+
+    function openUserMessageMenu(wrap, bubble, x, y) {
+      if (!userMessageMenu) return;
+      userMessageMenuTarget = { wrap, bubble };
+      const editBtn = userMessageMenu.querySelector('[data-action="edit"]');
+      if (editBtn) {
+        editBtn.style.display = wrap.classList.contains('latest-user') ? 'flex' : 'none';
+      }
+      const pad = 8;
+      const rect = menuRect(userMessageMenu);
+      const left = Math.max(pad, Math.min(x, window.innerWidth - rect.width - pad));
+      const top = Math.max(pad, Math.min(y, window.innerHeight - rect.height - pad));
+      userMessageMenu.style.left = left + 'px';
+      userMessageMenu.style.top = top + 'px';
+      userMessageMenu.classList.add('show');
+      renderRoundedIcons(userMessageMenu);
+    }
+
+    function menuRect(el) {
+      const prevShow = el.classList.contains('show');
+      if (!prevShow) {
+        el.style.visibility = 'hidden';
+        el.classList.add('show');
+      }
+      const r = el.getBoundingClientRect();
+      if (!prevShow) {
+        el.classList.remove('show');
+        el.style.visibility = '';
+      }
+      return { width: r.width || 132, height: r.height || 120 };
+    }
+
+    function deleteUserMessageAt(wrap) {
+      const idx = wrap._historyIndex;
+      if (typeof idx !== 'number') return;
+      chatHistory = chatHistory.slice(0, idx);
+      reRenderChatFromHistory();
+      persistCurrentSession();
+      if (!chatHistory.length) showWelcomeLayout();
+    }
+
+    function attachUserLongPress(wrap, bubble) {
+      let pressTimer = null;
+      let startX = 0;
+      let startY = 0;
+
+      const clearPress = () => {
+        if (pressTimer) {
+          clearTimeout(pressTimer);
+          pressTimer = null;
+        }
+        bubble.classList.remove('is-press-target');
+      };
+
+      bubble.addEventListener('touchstart', (e) => {
+        if (!isMobile() || wrap.classList.contains('is-editing')) return;
+        const t = e.touches[0];
+        startX = t.clientX;
+        startY = t.clientY;
+        bubble.classList.add('is-press-target');
+        pressTimer = setTimeout(() => {
+          if (navigator.vibrate) navigator.vibrate(8);
+          openUserMessageMenu(wrap, bubble, startX, startY - 8);
+        }, 500);
+      }, { passive: true });
+
+      bubble.addEventListener('touchmove', (e) => {
+        const t = e.touches[0];
+        if (Math.abs(t.clientX - startX) > 14 || Math.abs(t.clientY - startY) > 14) clearPress();
+      }, { passive: true });
+
+      bubble.addEventListener('touchend', clearPress);
+      bubble.addEventListener('touchcancel', clearPress);
+    }
+
+    function attachUserActions(wrap, bubble) {
       const actions = document.createElement('div');
       actions.className = 'user-actions';
       actions.innerHTML = `
@@ -29,9 +112,44 @@ function attachUserActions(wrap, bubble) {
           }
         });
       });
+      attachUserLongPress(wrap, bubble);
       renderRoundedIcons(actions);
       updateUserActionVisibility();
     }
+
+    if (userMessageMenu) {
+      userMessageMenu.querySelectorAll('.user-message-menu-btn').forEach((btn) => {
+        attachRipple(btn);
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          if (!userMessageMenuTarget) return;
+          const { wrap, bubble } = userMessageMenuTarget;
+          const action = btn.dataset.action;
+          const text = (bubble.textContent || '').trim();
+          closeUserMessageMenu();
+          if (action === 'edit') {
+            if (wrap.classList.contains('latest-user')) startUserInlineEdit(wrap, bubble);
+            return;
+          }
+          if (action === 'duplicate') {
+            if (!text) return;
+            chatInput.value = text;
+            chatInput.dispatchEvent(new Event('input'));
+            chatInput.focus();
+            return;
+          }
+          if (action === 'delete') {
+            deleteUserMessageAt(wrap);
+          }
+        });
+      });
+    }
+
+    document.addEventListener('click', (e) => {
+      if (!userMessageMenu || !userMessageMenu.classList.contains('show')) return;
+      if (e.target.closest('#user-message-menu') || e.target.closest('.msg-user')) return;
+      closeUserMessageMenu();
+    });
 
     function applyCopyCheckForAssistant(btn) {
       flashCheckIcon(btn, 1000);
