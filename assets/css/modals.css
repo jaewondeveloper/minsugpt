@@ -1,0 +1,204 @@
+﻿        display: flex !important;
+      }
+
+      /* 모바일 nav 버튼 배경색 명시 */
+      #new-chat-btn {
+        border-radius: 16px 16px 4px 4px !important;
+        background-color: #f0f0f0 !important;
+      }
+      #mobile-search-btn {
+        border-radius: 4px !important;
+        background-color: #f0f0f0 !important;
+      }
+      #mobile-library-btn {
+        border-radius: 4px 4px 16px 16px !important;
+        background-color: #f0f0f0 !important;
+      }
+      #mobile-nav-group #new-chat-btn.nav-item-active,
+      #mobile-nav-group #mobile-search-btn.nav-item-active,
+      #mobile-nav-group #mobile-library-btn.nav-item-active {
+        background-color: #e0e0e0 !important;
+      }
+      #mobile-top-new-chat.nav-item-active {
+        background-color: #e0e0e0 !important;
+      }
+      #new-chat-btn:active, #mobile-search-btn:active, #mobile-library-btn:active {
+        background-color: #d6d6d6 !important;
+      }
+
+      /* 아이콘 크기 */
+      #mobile-nav-group [data-lucide] {
+        width: 20px !important;
+        height: 20px !important;
+      }
+      /* 텍스트 크기 */
+      #mobile-nav-group .sidebar-text {
+        font-size: 15px !important;
+        font-weight: 400 !important;
+        margin-left: 14px !important;
+      }
+
+      /* 헤더 */
+      #sidebar > div:first-child > div:first-child {
+        padding: 20px 18px 14px 18px !important;
+        margin-bottom: 8px !important;
+        border-bottom: 1px solid rgba(0,0,0,0.07);
+      }
+      #sidebar > div:first-child > div:first-child span {
+        font-size: 18px !important;
+        font-weight: 600 !important;
+      }
+
+      /* 히스토리 영역 padding */
+      #sidebar .hide-on-mini {
+        padding: 0 14px !important;
+      }
+      /* 최근 채팅 row 크기 */
+      .history-item {
+        padding: 6px 6px 6px 11px !important;
+        border-radius: 9999px !important;
+        font-size: 13px !important;
+        min-height: 32px !important;
+      }
+      .history-more-btn {
+        opacity: 1 !important;
+        pointer-events: auto !important;
+      }
+      #chat-messages.chat-active {
+        padding-top: 56px !important;
+      }
+      #history-scroll {
+        max-height: min(50vh, 420px) !important;
+      }
+      .search-modal {
+        width: 100vw;
+        max-width: 100vw;
+        height: 100dvh;
+        max-height: 100dvh;
+        border-radius: 0;
+        border: none;
+        box-shadow: none;
+      }
+      .search-layout {
+        display: block;
+        height: calc(100dvh - 62px);
+      }
+      .search-preview {
+        display: none !important;
+      }
+      .search-modal-backdrop {
+        padding: 0;
+        align-items: stretch;
+        justify-content: stretch;
+      }
+
+      /* 프로필 하단 */
+      #sidebar > div:last-child {
+        padding: 16px 18px !important;
+        min-height: 68px !important;
+        border-top: 1px solid rgba(0,0,0,0.07) !important;
+      }
+      #sidebar > div:last-child [data-lucide] {
+        width: 20px !important;
+        height: 20px !important;
+      }
+
+      /* 아바타 크기 업 */
+      #sidebar .min-w-\[26px\] {
+        min-width: 38px !important;
+        min-height: 38px !important;
+        width: 38px !important;
+        height: 38px !important;
+      }
+      #sidebar > div:last-child p:first-child {
+        font-size: 15px !important;
+      }
+      #sidebar > div:last-child p:last-child {
+        font-size: 12px !important;
+      }
+
+      /* 닫기 버튼 크기 */
+      #sidebar-close-mobile {
+        width: 40px !important;
+        height: 40px !important;
+        min-width: 40px !important;
+        min-height: 40px !important;
+        border-radius: 12px !important;
+        padding: 0 !important;
+      }
+    }
+
+    /* ── 입력창 하단 여백 ── */
+    #input-box {
+      margin-bottom: 14px;
+      transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+                  margin-bottom 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+                  opacity 0.3s ease;
+    }
+    @media (max-width: 767px) {
+      #input-box {
+        margin-bottom: 18px;
+      }
+    }
+    @media (min-width: 768px) {
+      #sidebar {
+        background: #ffffff !important;
+        border-right: 1px solid #f1f5f9;
+      }
+      #sidebar .text-gray-700,
+      #sidebar .text-gray-600,
+      #sidebar .text-gray-500,
+      #sidebar .text-gray-400 {
+        color: #111111 !important;
+      }
+      #sidebar .text-gray-400 {
+        opacity: 0.92;
+      }
+      #sidebar [data-lucide], #sidebar iconify-icon {
+        color: #000000 !important;
+        opacity: 1 !important;
+      }
+      #sidebar .history-item {
+        border-radius: 9999px;
+      }
+      #main-panel.welcome-mode {
+        justify-content: center;
+        background:
+          radial-gradient(circle at var(--grad-x1, 40%) var(--grad-y1, 32%), var(--grad-c1, #cfe1ff) 0%, transparent 54%),
+          radial-gradient(circle at var(--grad-x2, 66%) var(--grad-y2, 64%), var(--grad-c2, #ffd9ea) 0%, transparent 52%),
+          linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+      }
+      #main-panel.chat-mode {
+        justify-content: flex-start;
+        background: #ffffff;
+      }
+      #main-panel.welcome-mode::after {
+        opacity: 0;
+      }
+      #main-panel.chat-mode::after {
+        opacity: 1;
+      }
+      #main-panel.welcome-mode #welcome-block {
+        flex: 0 0 auto;
+        margin: 0 0 16px 0;
+        position: relative;
+        z-index: 20;
+      }
+      #main-panel.welcome-mode #input-box {
+        transform: translateY(0);
+        margin-bottom: 0;
+        position: relative;
+        z-index: 10;
+      }
+      #main-panel.chat-mode #input-box {
+        transform: translateY(0);
+        margin-bottom: 14px;
+      }
+      #main-panel.welcome-mode #chat-messages {
+        opacity: 0;
+      }
+      #main-panel.chat-mode #chat-messages {
+        opacity: 1;
+        transition: opacity 0.28s ease;
+      }
+    }
