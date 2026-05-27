@@ -807,6 +807,7 @@
       transform: scale(0.88);
     }
 
+    /* @css responsive */
     /* ── 모바일 전용 사이드바 UI ── */
     @media (max-width: 767px) {
       body {
@@ -1053,6 +1054,7 @@
 </head>
 <body class="flex bg-white text-gray-800 select-none" style="height: 100dvh; min-height: 100dvh; overflow: hidden; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); box-sizing: border-box;">
 
+  <!-- MINSU_PARTIAL:mobile -->
   <div class="vignette-overlay md:hidden"></div>
 
   <div id="mobile-menu-btn-wrap" class="md:hidden fixed top-3 left-3" style="z-index: 9999;">
@@ -1072,6 +1074,7 @@
   </div>
 
   <div id="sidebar-backdrop" class="md:hidden fixed inset-0 bg-black/30 z-40 hidden opacity-0 transition-opacity duration-300"></div>
+  <!-- MINSU_PARTIAL:sidebar -->
 
   <aside id="sidebar" class="w-full md:w-64 bg-[#f0f4f9] p-1.5 flex flex-col justify-between h-full text-xs fixed md:static inset-0 z-50 transform -translate-x-full md:translate-x-0 smooth-transition hidden md:flex touch-none overflow-hidden">
     <div>
@@ -1125,6 +1128,7 @@
       </button>
     </div>
   </aside>
+  <!-- MINSU_PARTIAL:main -->
 
   <main id="main-panel" class="flex-1 bg-gradient-custom flex flex-col items-center px-4 min-h-0 overflow-hidden welcome-mode" style="padding-bottom: 0;">
     <div id="welcome-block" class="flex-1 flex flex-col items-center justify-center w-full">
@@ -1170,6 +1174,7 @@
       </div>
     </div>
   </main>
+  <!-- MINSU_PARTIAL:modals -->
   <div id="chat-search-modal" class="search-modal-backdrop">
     <div class="search-modal">
       <div class="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
@@ -1269,7 +1274,6 @@
     }
 
     renderRoundedIcons(document);
-    /* @chunk chat */
 
     const API_BASE = 'https://sigan.onrender.com';
     const STORAGE_KEY = 'minsugpt_chats_v1';
@@ -1939,7 +1943,7 @@
       updateAssistantActionVisibility();
     }
 
-    /* @chunk stream */
+    /* @js messages */
     function attachUserActions(wrap, bubble) {
       const actions = document.createElement('div');
       actions.className = 'user-actions';
@@ -2353,7 +2357,7 @@
       return chunks;
     }
 
-    /* @chunk boot */
+    /* @js stream */
     async function streamAssistantReply(bubble, fullText) {
       const body = document.createElement('div');
       body.className = 'md-body';

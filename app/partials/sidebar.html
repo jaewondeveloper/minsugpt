@@ -1,0 +1,52 @@
+﻿<aside id="sidebar" class="w-full md:w-64 bg-[#f0f4f9] p-1.5 flex flex-col justify-between h-full text-xs fixed md:static inset-0 z-50 transform -translate-x-full md:translate-x-0 smooth-transition hidden md:flex touch-none overflow-hidden">
+    <div>
+      <div class="flex items-center justify-between mb-3 px-1 pt-1 profile-container">
+        <div class="flex items-center space-x-2 hide-on-mini">
+          <span class="font-medium text-[14px] md:text-[14px] text-[17px] text-gray-700 tracking-tight">MinsuGPT</span>
+        </div>
+        <button id="sidebar-toggle" class="ripple-btn text-gray-500 hover:bg-gray-200/50 p-1.5 rounded-lg transition-colors items-center justify-center hidden md:flex">
+          <i data-lucide="menu" class="w-4 h-4"></i>
+        </button>
+        <button id="sidebar-close-mobile" class="md:hidden ripple-btn text-gray-500 hover:bg-gray-200/50 p-2 rounded-xl transition-colors flex items-center justify-center">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div id="mobile-nav-group" class="space-y-1 mb-3 flex flex-col items-center w-full">
+        <button id="new-chat-btn" type="button" class="ripple-btn center-on-mini w-full flex items-center justify-start px-3 py-1.5 rounded-full text-gray-700 transition-all duration-200 overflow-hidden">
+          <i data-lucide="square-pen" class="w-4 h-4 shrink-0"></i>
+          <span class="sidebar-text ml-2.5 font-normal text-[13px]">새 채팅</span>
+        </button>
+        <button id="mobile-search-btn" class="ripple-btn center-on-mini w-full flex items-center justify-start px-3 py-1.5 rounded-full text-gray-600 transition-all duration-200 overflow-hidden">
+          <i data-lucide="search" class="w-4 h-4 shrink-0"></i>
+          <span class="sidebar-text ml-2.5 font-normal text-[13px]">채팅 검색</span>
+        </button>
+        <button id="mobile-library-btn" class="ripple-btn center-on-mini w-full flex items-center justify-start px-3 py-1.5 rounded-full text-gray-600 transition-all duration-200 overflow-hidden">
+          <i data-lucide="library" class="w-4 h-4 shrink-0"></i>
+          <span class="sidebar-text ml-2.5 font-normal text-[13px]">라이브러리</span>
+        </button>
+      </div>
+
+      <div class="hide-on-mini pr-0.5 space-y-0.5 text-[12px] w-full">
+        <div class="text-[11px] text-gray-400 font-medium px-2 mb-1">최근</div>
+        <div id="history-scroll">
+          <div id="chat-history-list" class="space-y-1"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pt-2 pb-0.5 border-t border-gray-200/60 flex items-center justify-between px-1 profile-container">
+      <div class="flex items-center justify-center overflow-hidden w-full">
+        <div class="w-6.5 h-6.5 min-w-[26px] min-h-[26px] aspect-square rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-[11px] shrink-0 object-cover">
+          <i data-lucide="user" class="w-3.5 h-3.5"></i>
+        </div>
+        <div class="leading-tight truncate sidebar-text hide-on-mini ml-2 flex-1">
+          <p class="font-normal text-gray-700 text-[12.5px] truncate">게스트</p>
+          <p class="text-[10px] text-gray-400">MinsuGPT</p>
+        </div>
+      </div>
+      <button class="ripple-btn text-gray-400 hover:bg-gray-200/50 p-1 rounded-lg shrink-0 hide-on-mini">
+        <i data-lucide="settings" class="w-3.5 h-3.5"></i>
+      </button>
+    </div>
+  </aside>

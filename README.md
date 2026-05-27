@@ -8,32 +8,39 @@ Gemini-style chat UI for [MinsuGPT API](https://sigan.onrender.com).
 
 This project is proprietary and distributed under **All Rights Reserved** terms. See `LICENSE`.
 
-## Run locally
+## Structure
 
-This project is split into multiple assets. **Open `index.html` directly in a browser** after serving the folder (required for script loading):
+| Path | Role |
+|------|------|
+| `index.html` | **Iframe shell only** (saving this page shows a blank frame) |
+| `app/index.html` | **Real chat UI** (loaded inside the iframe) |
+| `app/partials/` | HTML fragments (`mobile`, `sidebar`, `main`, `modals`) |
+| `app/assets/css/` | `core.css` + `responsive.css` (media queries kept intact) |
+| `app/assets/js/` | Split JS modules (cannot run without `app/index.html`) |
+| `minsugpt-6.html` | Development source of truth for UI |
+
+## Run locally
 
 ```bash
 npx --yes serve .
 ```
 
-Or use any static file server pointed at this directory.
-
-> Single files under `assets/` are not meant to run alone.
+Open `http://localhost:3000/` (iframe) or `http://localhost:3000/app/` (direct app).
 
 ## GitHub Pages
 
-1. Push this repo to `jaewondeveloper/minsugpt`
-2. Repository **Settings → Pages → Build and deployment → Source**: Deploy from branch `main`, folder `/ (root)`
-3. Site URL: `https://jaewondeveloper.github.io/minsugpt/`
+1. Deploy branch `main`, folder `/ (root)`
+2. Entry: `https://jaewondeveloper.github.io/minsugpt/`
+3. App UI: `https://jaewondeveloper.github.io/minsugpt/app/`
 
-## Rebuild from source monolith
+## Rebuild
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/build-github-pages.ps1
 ```
 
-Source reference: `minsugpt-6.html` (development bundle).
+Always edit `minsugpt-6.html` first, then run the build script.
 
 ## API
 
-Chat requests go to `https://sigan.onrender.com/api/ai/chat` (POST JSON).
+`POST https://sigan.onrender.com/api/ai/chat`

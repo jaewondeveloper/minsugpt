@@ -1,4 +1,43 @@
-﻿        display: flex !important;
+﻿/* @css responsive */
+/* ── 모바일 전용 사이드바 UI ── */
+    @media (max-width: 767px) {
+      body {
+        font-family: 'Google Sans', sans-serif !important;
+        font-size: 1.03rem;
+      }
+      #sidebar {
+        padding: 0 !important;
+        border-radius: 0 28px 28px 0;
+        box-shadow: 4px 0 32px rgba(0,0,0,0.13);
+        max-width: 88vw;
+        width: 88vw !important;
+      }
+
+      /* 버튼 공통 크기 업 */
+      #sidebar #mobile-nav-group button,
+      #sidebar > div:last-child button {
+        font-size: 15px !important;
+        padding: 14px 18px !important;
+        height: auto !important;
+        min-height: 54px !important;
+        width: 100% !important;
+      }
+      #sidebar .history-more-btn {
+        width: 22px !important;
+        min-width: 22px !important;
+        height: 22px !important;
+        min-height: 22px !important;
+        padding: 0 !important;
+        margin-left: 6px !important;
+      }
+
+      /* 버튼 그룹 — 1px gap으로 이어붙인 느낌 */
+      #mobile-nav-group {
+        gap: 1.5px !important;
+        margin-bottom: 16px !important;
+        padding: 0 14px !important;
+        flex-direction: column !important;
+        display: flex !important;
       }
 
       /* 모바일 nav 버튼 배경색 명시 */

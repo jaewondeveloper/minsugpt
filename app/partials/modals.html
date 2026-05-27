@@ -1,0 +1,39 @@
+﻿<div id="chat-search-modal" class="search-modal-backdrop">
+    <div class="search-modal">
+      <div class="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
+        <i data-lucide="search" class="w-4 h-4 text-gray-400"></i>
+        <input id="chat-search-input" type="text" placeholder="채팅 제목/내용 검색" class="flex-1 outline-none text-[14px] text-gray-700 placeholder-gray-400 bg-transparent">
+        <button id="chat-search-close" class="ripple-btn w-8 h-8 rounded-full hover:bg-gray-100 text-gray-500 flex items-center justify-center">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div class="search-layout">
+        <div class="search-list p-3 space-y-2 border-r border-gray-100" id="chat-search-results"></div>
+        <div class="search-preview p-4" id="chat-search-preview">
+          <p class="text-sm text-gray-400">왼쪽에서 채팅을 선택하면 미리보기가 표시됩니다.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="history-action-menu" class="history-action-menu">
+    <button id="history-action-edit" class="history-action-btn ripple-btn" type="button">
+      <i data-lucide="pencil" class="w-3.5 h-3.5"></i><span>편집</span>
+    </button>
+    <button id="history-action-duplicate" class="history-action-btn ripple-btn" type="button">
+      <i data-lucide="copy" class="w-3.5 h-3.5"></i><span>복제</span>
+    </button>
+    <button id="history-action-delete" class="history-action-btn ripple-btn danger" type="button">
+      <i data-lucide="trash-2" class="w-3.5 h-3.5"></i><span>삭제</span>
+    </button>
+  </div>
+  <div id="history-dialog" class="history-dialog-backdrop">
+    <div class="history-dialog">
+      <h3 id="history-dialog-title" class="text-[15px] font-medium text-gray-800 mb-2">제목 편집</h3>
+      <p id="history-dialog-desc" class="text-[12px] text-gray-500 mb-3">새 제목을 입력하세요.</p>
+      <input id="history-dialog-input" class="history-dialog-input mb-3" type="text" />
+      <div class="flex items-center justify-end gap-2">
+        <button id="history-dialog-cancel" class="ripple-btn px-3 py-2 text-[12px] rounded-full text-gray-600 hover:bg-gray-100" type="button">취소</button>
+        <button id="history-dialog-ok" class="ripple-btn px-3 py-2 text-[12px] rounded-full bg-[#74b9ff] text-white" type="button">확인</button>
+      </div>
+    </div>
+  </div>

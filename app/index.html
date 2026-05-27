@@ -1,0 +1,181 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>MinsuGPT</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://code.iconify.design/iconify-icon/1.0.8/iconify-icon.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:ital,opsz,wght@0,17..18,400..700;1,17..18,400..700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/core.css">
+  <link rel="stylesheet" href="assets/css/responsive.css">
+</head>
+<body class="flex bg-white text-gray-800 select-none" style="height: 100dvh; min-height: 100dvh; overflow: hidden; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); box-sizing: border-box;">
+<div class="vignette-overlay md:hidden"></div>
+
+  <div id="mobile-menu-btn-wrap" class="md:hidden fixed top-3 left-3" style="z-index: 9999;">
+    <button id="mobile-menu-open" class="ripple-btn text-gray-500 p-2.5 rounded-full bg-white/80 backdrop-blur-md border border-gray-200/60 shadow-md flex items-center justify-center" style="-webkit-tap-highlight-color:transparent;">
+      <i data-lucide="menu" class="w-5 h-5"></i>
+    </button>
+  </div>
+  <div id="mobile-top-actions" class="md:hidden fixed top-3 right-3" style="z-index: 9997;">
+    <div class="flex items-center bg-white/85 backdrop-blur-md border border-gray-200/60 shadow-md rounded-full h-10 px-1">
+      <button id="mobile-top-new-chat" class="ripple-btn w-9 h-9 rounded-full flex items-center justify-center text-gray-600">
+        <i data-lucide="square-pen" class="w-4 h-4"></i>
+      </button>
+      <button id="mobile-top-more" class="ripple-btn w-9 h-9 rounded-full flex items-center justify-center text-gray-600">
+        <i data-lucide="ellipsis" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </div>
+
+  <div id="sidebar-backdrop" class="md:hidden fixed inset-0 bg-black/30 z-40 hidden opacity-0 transition-opacity duration-300"></div>
+
+<aside id="sidebar" class="w-full md:w-64 bg-[#f0f4f9] p-1.5 flex flex-col justify-between h-full text-xs fixed md:static inset-0 z-50 transform -translate-x-full md:translate-x-0 smooth-transition hidden md:flex touch-none overflow-hidden">
+    <div>
+      <div class="flex items-center justify-between mb-3 px-1 pt-1 profile-container">
+        <div class="flex items-center space-x-2 hide-on-mini">
+          <span class="font-medium text-[14px] md:text-[14px] text-[17px] text-gray-700 tracking-tight">MinsuGPT</span>
+        </div>
+        <button id="sidebar-toggle" class="ripple-btn text-gray-500 hover:bg-gray-200/50 p-1.5 rounded-lg transition-colors items-center justify-center hidden md:flex">
+          <i data-lucide="menu" class="w-4 h-4"></i>
+        </button>
+        <button id="sidebar-close-mobile" class="md:hidden ripple-btn text-gray-500 hover:bg-gray-200/50 p-2 rounded-xl transition-colors flex items-center justify-center">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div id="mobile-nav-group" class="space-y-1 mb-3 flex flex-col items-center w-full">
+        <button id="new-chat-btn" type="button" class="ripple-btn center-on-mini w-full flex items-center justify-start px-3 py-1.5 rounded-full text-gray-700 transition-all duration-200 overflow-hidden">
+          <i data-lucide="square-pen" class="w-4 h-4 shrink-0"></i>
+          <span class="sidebar-text ml-2.5 font-normal text-[13px]">새 채팅</span>
+        </button>
+        <button id="mobile-search-btn" class="ripple-btn center-on-mini w-full flex items-center justify-start px-3 py-1.5 rounded-full text-gray-600 transition-all duration-200 overflow-hidden">
+          <i data-lucide="search" class="w-4 h-4 shrink-0"></i>
+          <span class="sidebar-text ml-2.5 font-normal text-[13px]">채팅 검색</span>
+        </button>
+        <button id="mobile-library-btn" class="ripple-btn center-on-mini w-full flex items-center justify-start px-3 py-1.5 rounded-full text-gray-600 transition-all duration-200 overflow-hidden">
+          <i data-lucide="library" class="w-4 h-4 shrink-0"></i>
+          <span class="sidebar-text ml-2.5 font-normal text-[13px]">라이브러리</span>
+        </button>
+      </div>
+
+      <div class="hide-on-mini pr-0.5 space-y-0.5 text-[12px] w-full">
+        <div class="text-[11px] text-gray-400 font-medium px-2 mb-1">최근</div>
+        <div id="history-scroll">
+          <div id="chat-history-list" class="space-y-1"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pt-2 pb-0.5 border-t border-gray-200/60 flex items-center justify-between px-1 profile-container">
+      <div class="flex items-center justify-center overflow-hidden w-full">
+        <div class="w-6.5 h-6.5 min-w-[26px] min-h-[26px] aspect-square rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-[11px] shrink-0 object-cover">
+          <i data-lucide="user" class="w-3.5 h-3.5"></i>
+        </div>
+        <div class="leading-tight truncate sidebar-text hide-on-mini ml-2 flex-1">
+          <p class="font-normal text-gray-700 text-[12.5px] truncate">게스트</p>
+          <p class="text-[10px] text-gray-400">MinsuGPT</p>
+        </div>
+      </div>
+      <button class="ripple-btn text-gray-400 hover:bg-gray-200/50 p-1 rounded-lg shrink-0 hide-on-mini">
+        <i data-lucide="settings" class="w-3.5 h-3.5"></i>
+      </button>
+    </div>
+  </aside>
+
+<main id="main-panel" class="flex-1 bg-gradient-custom flex flex-col items-center px-4 min-h-0 overflow-hidden welcome-mode" style="padding-bottom: 0;">
+    <div id="welcome-block" class="flex-1 flex flex-col items-center justify-center w-full">
+      <h1 class="text-2xl md:text-3xl font-light text-gray-600 tracking-tight text-center">
+        안녕하세요, <span class="font-normal text-gray-900">무엇을 도와드릴까요?</span>
+      </h1>
+    </div>
+
+    <div id="chat-messages" class="chat-column hidden flex-1 min-h-0 overflow-y-auto px-1 space-y-4 w-full" style="padding-bottom: 24px;"></div>
+
+    <div id="chat-error" class="chat-column hidden mb-2 px-3 py-2 text-[13px] text-red-600 bg-red-50 border border-red-100 rounded-xl w-full max-w-[40rem]"></div>
+
+    <div id="input-box" class="chat-column bg-white rounded-[24px] shadow-sm border border-gray-200/90 p-2.5 pb-2 flex flex-col justify-between min-h-[92px] transition-all duration-200 focus-within:shadow-md shrink-0 mb-3 w-full max-w-[40rem]">
+      
+      <div class="w-full mb-1 flex items-center mt-1">
+        <textarea 
+          id="chat-input"
+          rows="1"
+          placeholder="MinsuGPT 에게 물어보기" 
+          class="w-full bg-transparent outline-none text-gray-800 placeholder-gray-400 text-[14px] px-1.5 font-normal resize-none h-6 block max-h-36 align-middle"
+        ></textarea>
+      </div>
+      
+      <div class="flex items-center justify-between pt-1">
+        <button class="ripple-btn text-gray-500 hover:bg-gray-100 w-9 h-9 min-w-[36px] min-h-[36px] rounded-full flex items-center justify-center transition-colors">
+          <i data-lucide="plus" class="w-4 h-4 text-gray-500"></i>
+        </button>
+        
+        <div class="flex items-center space-x-1.5">
+          <div class="ripple-btn flex items-center space-x-1 cursor-pointer text-gray-500 hover:bg-gray-50 px-2.5 py-1.5 rounded-lg text-xs font-medium">
+            <span>사고 모델</span>
+            <i data-lucide="chevron-down" class="w-3 h-3"></i>
+          </div>
+          
+          <button 
+            id="send-btn"
+            disabled
+            class="w-9 h-9 min-w-[36px] min-h-[36px] rounded-full flex items-center justify-center bg-gray-100 text-gray-400 cursor-not-allowed transition-all duration-300"
+          >
+            <i data-lucide="arrow-up" class="w-3.5 h-3.5 stroke-[2.5]"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+<div id="chat-search-modal" class="search-modal-backdrop">
+    <div class="search-modal">
+      <div class="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
+        <i data-lucide="search" class="w-4 h-4 text-gray-400"></i>
+        <input id="chat-search-input" type="text" placeholder="채팅 제목/내용 검색" class="flex-1 outline-none text-[14px] text-gray-700 placeholder-gray-400 bg-transparent">
+        <button id="chat-search-close" class="ripple-btn w-8 h-8 rounded-full hover:bg-gray-100 text-gray-500 flex items-center justify-center">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div class="search-layout">
+        <div class="search-list p-3 space-y-2 border-r border-gray-100" id="chat-search-results"></div>
+        <div class="search-preview p-4" id="chat-search-preview">
+          <p class="text-sm text-gray-400">왼쪽에서 채팅을 선택하면 미리보기가 표시됩니다.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="history-action-menu" class="history-action-menu">
+    <button id="history-action-edit" class="history-action-btn ripple-btn" type="button">
+      <i data-lucide="pencil" class="w-3.5 h-3.5"></i><span>편집</span>
+    </button>
+    <button id="history-action-duplicate" class="history-action-btn ripple-btn" type="button">
+      <i data-lucide="copy" class="w-3.5 h-3.5"></i><span>복제</span>
+    </button>
+    <button id="history-action-delete" class="history-action-btn ripple-btn danger" type="button">
+      <i data-lucide="trash-2" class="w-3.5 h-3.5"></i><span>삭제</span>
+    </button>
+  </div>
+  <div id="history-dialog" class="history-dialog-backdrop">
+    <div class="history-dialog">
+      <h3 id="history-dialog-title" class="text-[15px] font-medium text-gray-800 mb-2">제목 편집</h3>
+      <p id="history-dialog-desc" class="text-[12px] text-gray-500 mb-3">새 제목을 입력하세요.</p>
+      <input id="history-dialog-input" class="history-dialog-input mb-3" type="text" />
+      <div class="flex items-center justify-end gap-2">
+        <button id="history-dialog-cancel" class="ripple-btn px-3 py-2 text-[12px] rounded-full text-gray-600 hover:bg-gray-100" type="button">취소</button>
+        <button id="history-dialog-ok" class="ripple-btn px-3 py-2 text-[12px] rounded-full bg-[#74b9ff] text-white" type="button">확인</button>
+      </div>
+    </div>
+  </div>
+
+
+  <script>window.__MINSUGPT_BOOT__=true;</script>
+  <script src="assets/js/01-core.js"></script>
+  <script src="assets/js/02-messages.js"></script>
+  <script src="assets/js/03-stream-boot.js"></script>
+</body>
+</html>

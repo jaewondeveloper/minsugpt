@@ -1,61 +1,79 @@
-# Builds GitHub Pages layout from minsugpt-6.html
+# Builds GitHub Pages from minsugpt-6.html (UI source of truth)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $src = Join-Path $root 'minsugpt-6.html'
-$out = $root
+$appDir = Join-Path $root 'app'
+$cssDir = Join-Path $appDir 'assets\css'
+$jsDir = Join-Path $appDir 'assets\js'
+$partialDir = Join-Path $appDir 'partials'
 
 $html = Get-Content $src -Raw -Encoding UTF8
-if ($html -notmatch '(?s)<style>(.*?)</style>') { throw 'No style' }
+if ($html -notmatch '(?s)<style>(.*?)</style>') { throw 'No style block' }
 $allCss = $Matches[1].Trim()
 if ($html -notmatch '(?s)<body([^>]*)>(.*?)</body>') { throw 'No body' }
 $bodyAttrs = $Matches[1]
 $bodyInner = $Matches[2].Trim()
+$bodyInner = [regex]::Replace($bodyInner, '(?s)\s*<script>.*?</script>\s*$', '').Trim()
 if ($html -notmatch '(?s)<script>\s*(.*?)\s*</script>\s*</body>') { throw 'No script' }
 $allJs = $Matches[1].Trim()
 
-$cssDir = Join-Path $out 'assets\css'
-$jsDir = Join-Path $out 'assets\js'
-$pagesDir = Join-Path $out 'pages'
-$stubDir = Join-Path $out 'assets\js\stubs'
-$partialDir = Join-Path $out 'partials\shell'
-New-Item -ItemType Directory -Force -Path $cssDir, $jsDir, $pagesDir, $stubDir, $partialDir | Out-Null
+New-Item -ItemType Directory -Force -Path $cssDir, $jsDir, $partialDir | Out-Null
 
-$cssLines = $allCss -split "`n"
-$chunkSize = [Math]::Ceiling($cssLines.Count / 5)
-$cssNames = @('tokens', 'layout', 'sidebar', 'chat', 'modals')
-for ($i = 0; $i -lt 5; $i++) {
-  $start = $i * $chunkSize
-  $end = [Math]::Min($cssLines.Count - 1, $start + $chunkSize - 1)
-  if ($start -le $end) {
-    ($cssLines[$start..$end] -join "`n") | Set-Content (Join-Path $cssDir ($cssNames[$i] + '.css')) -Encoding UTF8
+# CSS: core + responsive (keeps @media blocks intact)
+if ($allCss -match '(?s)(.*?)/\* @css responsive \*/(.*)') {
+  $Matches[1].Trim() | Set-Content (Join-Path $cssDir 'core.css') -Encoding UTF8
+  ('/* @css responsive */' + "`r`n" + $Matches[2].Trim()) | Set-Content (Join-Path $cssDir 'responsive.css') -Encoding UTF8
+} else {
+  $allCss | Set-Content (Join-Path $cssDir 'core.css') -Encoding UTF8
+}
+
+# HTML partials
+$partialNames = @('mobile', 'sidebar', 'main', 'modals')
+$pattern = '(?s)<!-- MINSU_PARTIAL:(\w+) -->\s*'
+$segments = [regex]::Split($bodyInner, $pattern)
+for ($i = 1; $i -lt $segments.Length; $i += 2) {
+  $name = $segments[$i]
+  $content = $segments[$i + 1]
+  if ($name -in $partialNames) {
+    $content.Trim() | Set-Content (Join-Path $partialDir "$name.html") -Encoding UTF8
   }
 }
 
+$assembledBody = ''
+foreach ($name in $partialNames) {
+  $p = Join-Path $partialDir "$name.html"
+  if (Test-Path $p) {
+    $assembledBody += (Get-Content $p -Raw -Encoding UTF8).Trim() + "`r`n`r`n"
+  }
+}
+
+# JS modules (safe marker split)
 $guard = @'
 if (!window.__MINSUGPT_BOOT__) {
-  throw new Error("MinsuGPT: open index.html — this script cannot run alone.");
+  throw new Error("MinsuGPT: load app/index.html — this module cannot run alone.");
 }
 '@
-
-($guard + "`r`n" + $allJs) | Set-Content (Join-Path $jsDir 'app.js') -Encoding UTF8
-
-@'
-if (!window.__MINSUGPT_BOOT__) { throw new Error("Load index.html first"); }
-'@ | Set-Content (Join-Path $stubDir 'chat-fragment.js') -Encoding UTF8
-
-@'
-<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>MinsuGPT</title></head>
-<body><p>Sub-page fragment. Use <a href="../index.html">index.html</a>.</p></body></html>
-'@ | Set-Content (Join-Path $pagesDir 'docs.html') -Encoding UTF8
-
-$bodyInner | Set-Content (Join-Path $partialDir 'body.html') -Encoding UTF8
-
-$cssLinks = ''
-Get-ChildItem $cssDir -Filter '*.css' | Sort-Object Name | ForEach-Object {
-  $cssLinks += "  <link rel=`"stylesheet`" href=`"assets/css/$($_.Name)`">`r`n"
+$jsParts = [regex]::Split($allJs, '/\* @js [a-z]+ \*/')
+$jsNames = @('01-core.js', '02-messages.js', '03-stream-boot.js')
+for ($j = 0; $j -lt $jsParts.Length; $j++) {
+  $slice = $jsParts[$j].Trim()
+  if (-not $slice) { continue }
+  $fname = if ($j -lt $jsNames.Length) { $jsNames[$j] } else { "04-extra-$j.js" }
+  ($guard + "`r`n" + $slice) | Set-Content (Join-Path $jsDir $fname) -Encoding UTF8
 }
 
-$index = @"
+# app/index.html — real UI
+$cssLinks = @(
+  '  <link rel="stylesheet" href="assets/css/core.css">'
+  '  <link rel="stylesheet" href="assets/css/responsive.css">'
+) -join "`r`n"
+
+$jsScripts = "  <script>window.__MINSUGPT_BOOT__=true;</script>`r`n"
+Get-ChildItem $jsDir -Filter '*.js' | Sort-Object Name | ForEach-Object {
+  $jsScripts += "  <script src=`"assets/js/$($_.Name)`"></script>`r`n"
+}
+
+$appIndex = @"
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -68,15 +86,69 @@ $index = @"
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Google+Sans:ital,opsz,wght@0,17..18,400..700;1,17..18,400..700&display=swap" rel="stylesheet">
-$cssLinks</head>
+$cssLinks
+</head>
 <body$bodyAttrs>
-$bodyInner
-  <script>window.__MINSUGPT_BOOT__=true;</script>
-  <script src="assets/js/app.js"></script>
-</body>
+$assembledBody
+$jsScripts</body>
 </html>
 "@
 
-$index | Set-Content (Join-Path $out 'index.html') -Encoding UTF8
-'' | Set-Content (Join-Path $out '.nojekyll') -Encoding UTF8
-Write-Host "Built index.html + assets/js/app.js"
+$appIndex | Set-Content (Join-Path $appDir 'index.html') -Encoding UTF8
+
+# Root index.html — iframe shell only (save page shows blank shell)
+$shell = @'
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>MinsuGPT</title>
+  <style>
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #ffffff; }
+    iframe { border: 0; width: 100%; height: 100%; display: block; }
+  </style>
+</head>
+<body>
+  <iframe src="app/index.html" title="MinsuGPT" allow="clipboard-write"></iframe>
+</body>
+</html>
+'@
+$shell | Set-Content (Join-Path $root 'index.html') -Encoding UTF8
+
+# 404 page
+$notFound = @'
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MinsuGPT</title>
+  <style>
+    body { margin:0; min-height:100vh; display:grid; place-items:center; font-family:"Google Sans",sans-serif; background:#fff; }
+    .card { text-align:center; padding:24px; }
+    a { display:inline-block; margin-top:12px; padding:10px 16px; border-radius:999px; background:#111; color:#fff; text-decoration:none; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>404</h1>
+    <p>페이지를 찾을 수 없습니다.</p>
+    <a href="app/index.html">MinsuGPT 열기</a>
+  </main>
+</body>
+</html>
+'@
+$notFound | Set-Content (Join-Path $root '404.html') -Encoding UTF8
+
+'' | Set-Content (Join-Path $root '.nojekyll') -Encoding UTF8
+
+# Remove legacy root bundle (caused broken mobile/desktop CSS)
+$legacyCss = Join-Path $root 'assets\css'
+$legacyJs = Join-Path $root 'assets\js\app.js'
+if (Test-Path $legacyCss) { Remove-Item $legacyCss -Recurse -Force -ErrorAction SilentlyContinue }
+if (Test-Path $legacyJs) { Remove-Item $legacyJs -Force -ErrorAction SilentlyContinue }
+$legacyShell = Join-Path $root 'partials\shell'
+if (Test-Path $legacyShell) { Remove-Item $legacyShell -Recurse -Force -ErrorAction SilentlyContinue }
+
+Write-Host 'Built: index.html (iframe), app/index.html + partials/assets'
