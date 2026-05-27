@@ -1,5 +1,7 @@
 # MinsuGPT
 
+![License: All Rights Reserved](https://img.shields.io/badge/license-All%20Rights%20Reserved-red)
+
 Gemini-style chat UI for [MinsuGPT API](https://sigan.onrender.com).
 
 ## License
