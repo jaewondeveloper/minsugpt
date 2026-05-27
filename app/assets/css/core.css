@@ -25,7 +25,7 @@
       z-index: 1;
     }
     #main-panel.welcome-mode {
-      justify-content: center;
+      justify-content: flex-start;
       background:
         radial-gradient(circle at var(--grad-x1, 40%) var(--grad-y1, 32%), var(--grad-c1, #cfe1ff) 0%, transparent 54%),
         radial-gradient(circle at var(--grad-x2, 66%) var(--grad-y2, 64%), var(--grad-c2, #ffd9ea) 0%, transparent 52%),

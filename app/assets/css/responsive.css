@@ -109,6 +109,23 @@
       #main-panel.welcome-mode {
         padding-top: 52px;
       }
+      #main-panel.welcome-mode #welcome-block {
+        flex: 1 1 auto;
+        min-height: 0;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        margin: 0;
+      }
+      #main-panel.welcome-mode #input-box {
+        margin-top: auto;
+        margin-bottom: 18px;
+        flex-shrink: 0;
+        width: 100%;
+        max-width: 40rem;
+      }
       .user-msg-wrap .user-actions {
         display: none !important;
       }
@@ -211,12 +228,18 @@
       #sidebar .history-item {
         border-radius: 9999px;
       }
+      #main-panel.welcome-mode {
+        justify-content: center;
+      }
       #main-panel.welcome-mode #welcome-block {
+        flex: 0 0 auto;
         margin: 0 0 16px 0;
       }
       #main-panel.welcome-mode #input-box {
         transform: translateY(0);
+        margin-top: 0;
         margin-bottom: 0;
+        flex-shrink: 0;
       }
       #main-panel.chat-mode #input-box {
         transform: translateY(0);
