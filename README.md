@@ -2,6 +2,10 @@
 
 Gemini-style chat UI for [MinsuGPT API](https://sigan.onrender.com).
 
+## License
+
+This project is proprietary and distributed under **All Rights Reserved** terms. See `LICENSE`.
+
 ## Run locally
 
 This project is split into multiple assets. **Open `index.html` directly in a browser** after serving the folder (required for script loading):

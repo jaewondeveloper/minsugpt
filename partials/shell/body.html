@@ -1793,7 +1793,7 @@
       this.style.height = (this.value === '') ? '24px' : nextHeight + 'px';
     });
 
-    sendBtn.addEventListener('click', sendMessage);
+    sendBtn.addEventListener('click', () => sendMessage());
 
     chatInput.addEventListener('keydown', function(e) {
       if (e.key === 'Enter' && !e.shiftKey) {

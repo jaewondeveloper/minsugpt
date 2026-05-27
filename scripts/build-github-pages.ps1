@@ -44,7 +44,7 @@ if (!window.__MINSUGPT_BOOT__) { throw new Error("Load index.html first"); }
 '@ | Set-Content (Join-Path $stubDir 'chat-fragment.js') -Encoding UTF8
 
 @'
-<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>Docs</title></head>
+<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>MinsuGPT</title></head>
 <body><p>Sub-page fragment. Use <a href="../index.html">index.html</a>.</p></body></html>
 '@ | Set-Content (Join-Path $pagesDir 'docs.html') -Encoding UTF8
 

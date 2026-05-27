@@ -1,7 +1,1217 @@
-﻿if (!window.__MINSUGPT_BOOT__) {
-  throw new Error("MinsuGPT: open index.html ??this script cannot run alone.");
-}
-function iconNameMap(name) {
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>MinsuGPT</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://code.iconify.design/iconify-icon/1.0.8/iconify-icon.min.js"></script>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:ital,opsz,wght@0,17..18,400..700;1,17..18,400..700&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      font-family: 'Google Sans', sans-serif;
+      letter-spacing: -0.015em;
+    }
+    .text-gray-900, .text-gray-800, .text-gray-700, .text-gray-600, .text-gray-500, .text-gray-400,
+    .placeholder-gray-400 {
+      color: #000000 !important;
+    }
+    
+    .bg-gradient-custom {
+      background:
+        radial-gradient(circle at var(--grad-x1, 40%) var(--grad-y1, 32%), var(--grad-c1, #cfe1ff) 0%, transparent 54%),
+        radial-gradient(circle at var(--grad-x2, 66%) var(--grad-y2, 64%), var(--grad-c2, #ffd9ea) 0%, transparent 52%),
+        linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+      transition: background 0.5s linear;
+    }
+    #main-panel {
+      position: relative;
+      background: #ffffff;
+    }
+    #main-panel > * {
+      position: relative;
+      z-index: 1;
+    }
+    #main-panel::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 22%;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0;
+      transition: opacity 0.35s ease;
+      background:
+        linear-gradient(90deg, rgba(255,255,255,1) 0%, rgba(255,255,255,0.94) 4%, rgba(255,255,255,0.5) 9%, rgba(255,255,255,0) 16%),
+        linear-gradient(270deg, rgba(255,255,255,1) 0%, rgba(255,255,255,0.94) 4%, rgba(255,255,255,0.5) 9%, rgba(255,255,255,0) 16%),
+        radial-gradient(72% 64% at 22% 100%, var(--grad-c1, #cfe1ff) 0%, transparent 72%),
+        radial-gradient(70% 62% at 54% 100%, var(--grad-c2, #ffd9ea) 0%, transparent 72%),
+        radial-gradient(68% 60% at 84% 100%, #e4d7ff 0%, transparent 72%);
+      background-repeat: no-repeat;
+      background-size: 100% 100%, 100% 100%, 120% 100%, 120% 100%, 120% 100%;
+      background-position: 0% 100%, 100% 100%, 0% 100%, 50% 100%, 100% 100%;
+      -webkit-mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.98) 0%, rgba(0, 0, 0, 0.78) 40%, rgba(0, 0, 0, 0.25) 72%, rgba(0, 0, 0, 0) 100%);
+      mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.98) 0%, rgba(0, 0, 0, 0.78) 40%, rgba(0, 0, 0, 0.25) 72%, rgba(0, 0, 0, 0) 100%);
+    }
+    #main-panel.gradient-wave::after {
+      animation: gradientWavePulse 1450ms cubic-bezier(0.22, 1, 0.36, 1);
+      will-change: transform, filter, opacity;
+      transform-origin: bottom center;
+    }
+    @keyframes gradientWavePulse {
+      0% {
+        transform: translateY(0) scaleY(1);
+        filter: saturate(1) brightness(1);
+        opacity: 1;
+      }
+      18% {
+        transform: translateY(-9px) scaleY(1.16);
+        filter: saturate(1.28) brightness(1.12) contrast(1.04);
+        background-position: -3% 98%, 103% 98%, -3% 98%, 50% 99%, 103% 98%;
+        opacity: 0.97;
+      }
+      36% {
+        transform: translateY(-3px) scaleY(1.07);
+        filter: saturate(1.18) brightness(1.07) contrast(1.02);
+        background-position: -1% 99%, 101% 99%, -1% 99%, 50% 100%, 101% 99%;
+        opacity: 1;
+      }
+      54% {
+        transform: translateY(-7px) scaleY(1.12);
+        filter: saturate(1.24) brightness(1.1) contrast(1.03);
+        background-position: -2% 98.5%, 102% 98.5%, -2% 98.5%, 50% 99%, 102% 98.5%;
+        opacity: 0.98;
+      }
+      72% {
+        transform: translateY(-2px) scaleY(1.05);
+        filter: saturate(1.12) brightness(1.05) contrast(1.01);
+        background-position: 0% 100%, 100% 100%, 0% 100%, 50% 100%, 100% 100%;
+        opacity: 1;
+      }
+      88% {
+        transform: translateY(-4px) scaleY(1.08);
+        filter: saturate(1.18) brightness(1.08) contrast(1.02);
+        background-position: -1% 99.5%, 101% 99.5%, -1% 99.5%, 50% 100%, 101% 99.5%;
+        opacity: 0.99;
+      }
+      100% {
+        transform: translateY(0) scaleY(1);
+        filter: saturate(1) brightness(1);
+        background-position: 0% 100%, 100% 100%, 0% 100%, 50% 100%, 100% 100%;
+        opacity: 1;
+      }
+    }
+
+    [data-lucide], iconify-icon {
+      line-height: 1;
+      vertical-align: middle;
+    }
+    iconify-icon {
+      font-size: 20px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* --- 모바일 스타일 리플(Ripple) 효과 --- */
+    .ripple-btn {
+      position: relative;
+      overflow: hidden;
+      transform: translate3d(0, 0, 0);
+    }
+
+    .ripple {
+      position: absolute;
+      border-radius: 50%;
+      background-color: rgba(0, 0, 0, 0.06);
+      transform: scale(0);
+      transition: transform 0.5s cubic-bezier(0.1, 0.8, 0.3, 1), opacity 0.4s ease;
+      pointer-events: none;
+      opacity: 1;
+    }
+
+    .ripple.fade-out {
+      opacity: 0;
+    }
+
+    textarea::-webkit-scrollbar {
+      display: none;
+    }
+    textarea {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    /* PC 사이드바 슬라이딩 애니메이션 가속도 정의 */
+    .smooth-transition {
+      transition: width 0.38s cubic-bezier(0.22, 1, 0.36, 1), 
+                  padding 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+                  transform 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+                  box-shadow 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    /* 텍스트 페이드아웃 애니메이션 */
+    .sidebar-text {
+      transition: opacity 0.15s cubic-bezier(0.25, 1, 0.5, 1);
+      display: inline-block;
+      white-space: nowrap;
+    }
+    
+    /* [요청 반영] 미니 사이드바 상태에서 완벽한 아이콘 정중앙 정렬 레이아웃 강제 지정 */
+    .sidebar-mini {
+      width: 52px !important;
+      padding-left: 0.35rem !important;
+      padding-right: 0.35rem !important;
+    }
+    .sidebar-mini .sidebar-text {
+      opacity: 0 !important;
+      pointer-events: none;
+      width: 0 !important;
+      margin-left: 0 !important;
+      display: none !important;
+    }
+    .sidebar-mini .hide-on-mini {
+      display: none !important;
+    }
+    .sidebar-mini #sidebar-toggle {
+      display: flex !important;
+      margin: 0 auto;
+    }
+    
+    /* 미니 모드일 때 버튼들을 정원형으로 바꾸고 내부 아이콘을 완벽한 가로/세로 정중앙(center)에 꽂음 */
+    .sidebar-mini .center-on-mini {
+      justify-content: center !important;
+      align-items: center !important;
+      padding: 0 !important;
+      width: 36px !important;
+      height: 36px !important;
+      border-radius: 50% !important;
+      margin-left: auto !important;
+      margin-right: auto !important;
+    }
+    
+    /* 미니 모드일 때 아이콘 자체의 여백 치우침 현상 원천 제거 */
+    .sidebar-mini .center-on-mini [data-lucide] {
+      margin: 0 !important;
+    }
+
+    .sidebar-mini .profile-container {
+      justify-content: center !important;
+      width: 100% !important;
+      padding: 0 !important;
+    }
+
+    /* 모바일 전용 비네팅 그라데이션 스타일 */
+    .vignette-overlay {
+      position: fixed;
+      inset: 0;
+      box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.04);
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .chat-column {
+      width: 100%;
+      max-width: 40rem;
+    }
+
+    #chat-messages {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    #chat-messages::-webkit-scrollbar {
+      display: none;
+    }
+
+    .msg-user {
+      background: #e8f0fe;
+      color: #1a1a1a;
+      border-radius: 9999px;
+      margin-left: auto;
+      max-width: 85%;
+      padding: 10px 20px;
+      user-select: text;
+    }
+    .user-msg-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      width: 100%;
+    }
+    .user-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 6px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.18s ease;
+    }
+    .user-msg-wrap:hover .user-actions {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .user-msg-wrap.is-editing {
+      align-items: stretch;
+      max-width: 40rem;
+      width: 100%;
+      margin-left: auto;
+    }
+    .user-msg-wrap.is-editing .user-actions {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .msg-user.editing {
+      max-width: 100%;
+      width: 100%;
+      margin-left: 0;
+      border-radius: 24px;
+      padding: 12px 16px 10px;
+      background: #ffffff;
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+      transition: max-width 0.28s cubic-bezier(0.22, 1, 0.36, 1), border-radius 0.28s ease;
+    }
+    .user-edit-textarea {
+      width: 100%;
+      min-height: 72px;
+      max-height: 240px;
+      resize: none;
+      border: none;
+      outline: none;
+      background: transparent;
+      color: #1a1a1a;
+      font-family: inherit;
+      font-size: 14px;
+      line-height: 1.5;
+      overflow-y: auto;
+    }
+    .user-edit-textarea::-webkit-scrollbar { display: none; }
+    .user-edit-textarea { scrollbar-width: none; }
+    .user-edit-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 10px;
+      width: 100%;
+    }
+    .user-edit-btn {
+      padding: 7px 16px;
+      border-radius: 9999px;
+      font-size: 13px;
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+    }
+    .user-edit-btn.cancel {
+      background: #f3f4f6;
+      color: #111;
+    }
+    .user-edit-btn.confirm {
+      background: #74b9ff;
+      color: #fff;
+    }
+    .msg-assistant.is-loading {
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+    }
+    .msg-assistant .typing-dots {
+      display: block;
+      flex-shrink: 0;
+    }
+    .assistant-action-btn.is-busy {
+      opacity: 0.35;
+      pointer-events: none;
+    }
+    .user-msg-wrap:not(.latest-user) .user-action-edit {
+      display: none;
+    }
+    .user-action-btn {
+      width: 24px;
+      height: 24px;
+      border-radius: 9999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #000;
+      background: transparent;
+    }
+    .user-action-btn:hover {
+      background: rgba(0,0,0,0.08);
+    }
+    .msg-assistant {
+      background: transparent;
+      color: #374151;
+      width: 100%;
+      max-width: 100%;
+      user-select: text;
+    }
+    .assistant-msg-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      width: 100%;
+      max-width: 100%;
+    }
+    .assistant-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 6px;
+      flex-wrap: wrap;
+      width: 100%;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.18s ease;
+    }
+    .assistant-msg-wrap.actions-ready:hover .assistant-actions,
+    .assistant-msg-wrap.actions-ready.always-show .assistant-actions {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .assistant-action-btn {
+      width: 24px;
+      height: 24px;
+      border-radius: 9999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #000;
+      background: transparent;
+    }
+    .assistant-action-btn:hover {
+      background: rgba(0,0,0,0.08);
+    }
+    .assistant-action-btn.active {
+      background: rgba(0,0,0,0.12);
+    }
+    .assistant-version-nav {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      font-size: 12px;
+      color: #000;
+    }
+    .assistant-version-nav .ver-label {
+      min-width: 42px;
+      text-align: center;
+      user-select: none;
+    }
+    .assistant-version-nav button:disabled {
+      opacity: 0.35;
+      pointer-events: none;
+    }
+
+    .md-body {
+      line-height: 1.65;
+      font-size: 14px;
+      word-break: break-word;
+      width: 100%;
+      user-select: text;
+    }
+    .md-body .md-stable {
+      width: 100%;
+    }
+    .md-body .md-tail {
+      display: inline;
+    }
+    .md-body > *:first-child { margin-top: 0; }
+    .md-body > *:last-child { margin-bottom: 0; }
+    .md-body p { margin: 0.45em 0; }
+    .md-body h1, .md-body h2, .md-body h3 {
+      font-weight: 500;
+      color: #111827;
+      margin: 0.85em 0 0.35em;
+    }
+    .md-body h1 { font-size: 1.15em; }
+    .md-body h2 { font-size: 1.05em; }
+    .md-body h3 { font-size: 1em; }
+    .md-body strong { font-weight: 600; color: #1f2937; }
+    .md-body em { color: #4b5563; }
+    .md-body code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.88em;
+      background: #f1f5f9;
+      padding: 0.12em 0.45em;
+      border-radius: 8px;
+      color: #334155;
+    }
+    .md-body pre {
+      background: #f8fafc;
+      border: 1px solid #e8edf3;
+      border-radius: 16px;
+      padding: 12px 14px;
+      overflow-x: auto;
+      margin: 0.65em 0;
+    }
+    .md-body pre code {
+      background: none;
+      padding: 0;
+      border-radius: 0;
+      font-size: 12px;
+    }
+    .md-body ul, .md-body ol {
+      margin: 0.4em 0;
+      padding-left: 1.35em;
+    }
+    .md-body li { margin: 0.2em 0; }
+    .md-body blockquote {
+      margin: 0.55em 0;
+      padding: 0.4em 0 0.4em 0.9em;
+      border-left: 3px solid #93c5fd;
+      background: linear-gradient(90deg, #f0f7ff 0%, transparent 100%);
+      border-radius: 0 14px 14px 0;
+      color: #4b5563;
+    }
+    .md-body table {
+      border-collapse: separate;
+      border-spacing: 0;
+      width: 100%;
+      max-width: 100%;
+      display: table;
+      table-layout: fixed;
+      margin: 0.65em 0;
+      font-size: 13px;
+      border: 1px solid #e8ecf1;
+      border-radius: 14px;
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+    .md-body th, .md-body td {
+      padding: 8px 11px;
+      border-bottom: 1px solid #eef1f5;
+      text-align: left;
+    }
+    .md-body th {
+      background: #f4f7fb;
+      font-weight: 500;
+      color: #374151;
+    }
+    .md-body tr:last-child td { border-bottom: none; }
+    .md-body hr {
+      border: none;
+      height: 1px;
+      background: #e8ecf1;
+      border-radius: 1px;
+      margin: 0.85em 0;
+    }
+    .md-body a {
+      color: #4a90d9;
+      text-decoration: none;
+      border-radius: 4px;
+    }
+    .md-body a:hover { text-decoration: underline; }
+
+    .md-frozen-block {
+      display: block;
+      width: 100%;
+      margin: 0.2em 0;
+    }
+    .md-tail {
+      display: inline;
+    }
+    .md-table-slot {
+      width: 100%;
+      margin: 0.65em 0;
+    }
+    .table-loading-card {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      min-height: 54px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px dashed #d5dce6;
+      background: #f8fafc;
+      color: #6b7280;
+      font-size: 13px;
+      box-sizing: border-box;
+    }
+    .table-loading-card .typing-dots {
+      flex-shrink: 0;
+    }
+    .md-word-fade {
+      display: inline;
+      opacity: 0;
+      animation: wordFadeIn 0.52s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+    @keyframes wordFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(4px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .typing-dots {
+      position: relative;
+      width: 32px;
+      height: 18px;
+      padding: 2px 0;
+    }
+    .typing-dots span {
+      position: absolute;
+      top: 5px;
+      left: 0;
+      width: 7px;
+      height: 7px;
+      background: #111;
+      border-radius: 50%;
+      will-change: transform;
+    }
+
+    .history-item {
+      cursor: pointer;
+      position: relative;
+    }
+    .history-item.active {
+      background: rgba(0, 0, 0, 0.06);
+    }
+    .history-item.history-pill.active {
+      background: rgba(0, 0, 0, 0.12) !important;
+    }
+    .history-pill {
+      border-radius: 9999px !important;
+      min-height: 30px !important;
+      padding: 5px 5px 5px 11px !important;
+      border: none !important;
+      background: transparent !important;
+      backdrop-filter: none !important;
+    }
+    .history-pill:hover {
+      background: rgba(0, 0, 0, 0.05) !important;
+    }
+    #new-chat-btn.nav-item-active {
+      background-color: #e0e0e0 !important;
+    }
+    .history-main {
+      flex: 1;
+      min-width: 0;
+    }
+    .history-more-btn {
+      width: 22px;
+      height: 22px;
+      min-width: 22px;
+      border-radius: 9999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #6b7280;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease, background-color 0.15s ease;
+    }
+    .history-item:hover .history-more-btn,
+    .history-item:focus-within .history-more-btn {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .history-more-btn:hover {
+      background: rgba(0, 0, 0, 0.08);
+    }
+    .history-action-menu {
+      position: fixed;
+      z-index: 13000;
+      min-width: 132px;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+      box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
+      padding: 6px;
+      display: none;
+      opacity: 0;
+      transform: translateY(6px) scale(0.96);
+      transform-origin: top left;
+      transition: opacity 0.18s ease, transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .history-action-menu.show {
+      display: block;
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+    .history-action-btn {
+      width: 100%;
+      border-radius: 10px;
+      padding: 8px 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #374151;
+      text-align: left;
+      background: transparent;
+    }
+    .history-action-btn:hover {
+      background: #f3f4f6;
+    }
+    .history-action-btn.danger {
+      color: #b91c1c;
+    }
+    .history-action-btn.danger:hover {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+    .history-dialog-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 14000;
+      background: rgba(15, 23, 42, 0.35);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+    .history-dialog-backdrop.show {
+      display: flex;
+      opacity: 1;
+    }
+    .history-dialog {
+      width: min(360px, 92vw);
+      border-radius: 18px;
+      border: 1px solid #e5e7eb;
+      background: #fff;
+      box-shadow: 0 18px 48px rgba(15, 23, 42, 0.22);
+      padding: 16px;
+      transform: translateY(10px) scale(0.97);
+      transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .history-dialog-backdrop.show .history-dialog {
+      transform: translateY(0) scale(1);
+    }
+    .history-dialog-input {
+      width: 100%;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 9px 11px;
+      font-size: 13px;
+      outline: none;
+    }
+    .history-dialog-input:focus {
+      border-color: #93c5fd;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.16);
+    }
+    #chat-messages.chat-active {
+      padding-top: 52px;
+    }
+    @media (min-width: 768px) {
+      #chat-messages.chat-active {
+        padding-top: 16px;
+      }
+    }
+    #history-scroll {
+      max-height: min(56vh, 440px);
+      overflow-y: auto;
+      padding-right: 2px;
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    #history-scroll::-webkit-scrollbar {
+      display: none;
+    }
+    #chat-history-list {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    #chat-history-list::-webkit-scrollbar {
+      display: none;
+    }
+
+    .search-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.36);
+      backdrop-filter: blur(2px);
+      z-index: 12000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .search-modal-backdrop.show {
+      display: flex;
+    }
+    .search-modal {
+      width: min(960px, 92vw);
+      max-height: min(80vh, 720px);
+      height: min(80vh, 720px);
+      background: #fff;
+      border-radius: 24px;
+      border: 1px solid #e5e7eb;
+      box-shadow: 0 24px 56px rgba(15, 23, 42, 0.2);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .search-layout {
+      display: grid;
+      grid-template-columns: 40% 60%;
+      min-height: 0;
+      height: 100%;
+    }
+    .search-list, .search-preview {
+      overflow-y: auto;
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+      height: 100%;
+    }
+    .search-list::-webkit-scrollbar,
+    .search-preview::-webkit-scrollbar {
+      display: none;
+    }
+    .search-item {
+      border-radius: 16px;
+      border: 1px solid #edf0f4;
+      background: #fbfcfe;
+      padding: 10px 12px;
+      cursor: pointer;
+      transition: background-color .15s ease;
+    }
+    .search-item:hover {
+      background: #f1f5fb;
+    }
+    .search-item.active {
+      background: #eaf3ff;
+      border-color: #d1e5ff;
+    }
+
+    /* ── 네이티브 앱 느낌: spring 전환 + 탭 하이라이트 제거 ── */
+    button, .ripple-btn, textarea, #input-box {
+      -webkit-tap-highlight-color: transparent;
+    }
+    button {
+      transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
+                  background-color 0.15s ease,
+                  box-shadow 0.15s ease,
+                  opacity 0.15s ease;
+      will-change: transform;
+    }
+    button:active {
+      transform: scale(0.93);
+    }
+    #send-btn:not(:disabled):active {
+      transform: scale(0.88);
+    }
+
+    /* ── 모바일 전용 사이드바 UI ── */
+    @media (max-width: 767px) {
+      body {
+        font-family: 'Google Sans', sans-serif !important;
+        font-size: 1.03rem;
+      }
+      #sidebar {
+        padding: 0 !important;
+        border-radius: 0 28px 28px 0;
+        box-shadow: 4px 0 32px rgba(0,0,0,0.13);
+        max-width: 88vw;
+        width: 88vw !important;
+      }
+
+      /* 버튼 공통 크기 업 */
+      #sidebar #mobile-nav-group button,
+      #sidebar > div:last-child button {
+        font-size: 15px !important;
+        padding: 14px 18px !important;
+        height: auto !important;
+        min-height: 54px !important;
+        width: 100% !important;
+      }
+      #sidebar .history-more-btn {
+        width: 22px !important;
+        min-width: 22px !important;
+        height: 22px !important;
+        min-height: 22px !important;
+        padding: 0 !important;
+        margin-left: 6px !important;
+      }
+
+      /* 버튼 그룹 — 1px gap으로 이어붙인 느낌 */
+      #mobile-nav-group {
+        gap: 1.5px !important;
+        margin-bottom: 16px !important;
+        padding: 0 14px !important;
+        flex-direction: column !important;
+        display: flex !important;
+      }
+
+      /* 모바일 nav 버튼 배경색 명시 */
+      #new-chat-btn {
+        border-radius: 16px 16px 4px 4px !important;
+        background-color: #f0f0f0 !important;
+      }
+      #mobile-search-btn {
+        border-radius: 4px !important;
+        background-color: #f0f0f0 !important;
+      }
+      #mobile-library-btn {
+        border-radius: 4px 4px 16px 16px !important;
+        background-color: #f0f0f0 !important;
+      }
+      #mobile-nav-group #new-chat-btn.nav-item-active,
+      #mobile-nav-group #mobile-search-btn.nav-item-active,
+      #mobile-nav-group #mobile-library-btn.nav-item-active {
+        background-color: #e0e0e0 !important;
+      }
+      #mobile-top-new-chat.nav-item-active {
+        background-color: #e0e0e0 !important;
+      }
+      #new-chat-btn:active, #mobile-search-btn:active, #mobile-library-btn:active {
+        background-color: #d6d6d6 !important;
+      }
+
+      /* 아이콘 크기 */
+      #mobile-nav-group [data-lucide] {
+        width: 20px !important;
+        height: 20px !important;
+      }
+      /* 텍스트 크기 */
+      #mobile-nav-group .sidebar-text {
+        font-size: 15px !important;
+        font-weight: 400 !important;
+        margin-left: 14px !important;
+      }
+
+      /* 헤더 */
+      #sidebar > div:first-child > div:first-child {
+        padding: 20px 18px 14px 18px !important;
+        margin-bottom: 8px !important;
+        border-bottom: 1px solid rgba(0,0,0,0.07);
+      }
+      #sidebar > div:first-child > div:first-child span {
+        font-size: 18px !important;
+        font-weight: 600 !important;
+      }
+
+      /* 히스토리 영역 padding */
+      #sidebar .hide-on-mini {
+        padding: 0 14px !important;
+      }
+      /* 최근 채팅 row 크기 */
+      .history-item {
+        padding: 6px 6px 6px 11px !important;
+        border-radius: 9999px !important;
+        font-size: 13px !important;
+        min-height: 32px !important;
+      }
+      .history-more-btn {
+        opacity: 1 !important;
+        pointer-events: auto !important;
+      }
+      #chat-messages.chat-active {
+        padding-top: 56px !important;
+      }
+      #history-scroll {
+        max-height: min(50vh, 420px) !important;
+      }
+      .search-modal {
+        width: 100vw;
+        max-width: 100vw;
+        height: 100dvh;
+        max-height: 100dvh;
+        border-radius: 0;
+        border: none;
+        box-shadow: none;
+      }
+      .search-layout {
+        display: block;
+        height: calc(100dvh - 62px);
+      }
+      .search-preview {
+        display: none !important;
+      }
+      .search-modal-backdrop {
+        padding: 0;
+        align-items: stretch;
+        justify-content: stretch;
+      }
+
+      /* 프로필 하단 */
+      #sidebar > div:last-child {
+        padding: 16px 18px !important;
+        min-height: 68px !important;
+        border-top: 1px solid rgba(0,0,0,0.07) !important;
+      }
+      #sidebar > div:last-child [data-lucide] {
+        width: 20px !important;
+        height: 20px !important;
+      }
+
+      /* 아바타 크기 업 */
+      #sidebar .min-w-\[26px\] {
+        min-width: 38px !important;
+        min-height: 38px !important;
+        width: 38px !important;
+        height: 38px !important;
+      }
+      #sidebar > div:last-child p:first-child {
+        font-size: 15px !important;
+      }
+      #sidebar > div:last-child p:last-child {
+        font-size: 12px !important;
+      }
+
+      /* 닫기 버튼 크기 */
+      #sidebar-close-mobile {
+        width: 40px !important;
+        height: 40px !important;
+        min-width: 40px !important;
+        min-height: 40px !important;
+        border-radius: 12px !important;
+        padding: 0 !important;
+      }
+    }
+
+    /* ── 입력창 하단 여백 ── */
+    #input-box {
+      margin-bottom: 14px;
+      transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+                  margin-bottom 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+                  opacity 0.3s ease;
+    }
+    @media (max-width: 767px) {
+      #input-box {
+        margin-bottom: 18px;
+      }
+    }
+    @media (min-width: 768px) {
+      #sidebar {
+        background: #ffffff !important;
+        border-right: 1px solid #f1f5f9;
+      }
+      #sidebar .text-gray-700,
+      #sidebar .text-gray-600,
+      #sidebar .text-gray-500,
+      #sidebar .text-gray-400 {
+        color: #111111 !important;
+      }
+      #sidebar .text-gray-400 {
+        opacity: 0.92;
+      }
+      #sidebar [data-lucide], #sidebar iconify-icon {
+        color: #000000 !important;
+        opacity: 1 !important;
+      }
+      #sidebar .history-item {
+        border-radius: 9999px;
+      }
+      #main-panel.welcome-mode {
+        justify-content: center;
+        background:
+          radial-gradient(circle at var(--grad-x1, 40%) var(--grad-y1, 32%), var(--grad-c1, #cfe1ff) 0%, transparent 54%),
+          radial-gradient(circle at var(--grad-x2, 66%) var(--grad-y2, 64%), var(--grad-c2, #ffd9ea) 0%, transparent 52%),
+          linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+      }
+      #main-panel.chat-mode {
+        justify-content: flex-start;
+        background: #ffffff;
+      }
+      #main-panel.welcome-mode::after {
+        opacity: 0;
+      }
+      #main-panel.chat-mode::after {
+        opacity: 1;
+      }
+      #main-panel.welcome-mode #welcome-block {
+        flex: 0 0 auto;
+        margin: 0 0 16px 0;
+        position: relative;
+        z-index: 20;
+      }
+      #main-panel.welcome-mode #input-box {
+        transform: translateY(0);
+        margin-bottom: 0;
+        position: relative;
+        z-index: 10;
+      }
+      #main-panel.chat-mode #input-box {
+        transform: translateY(0);
+        margin-bottom: 14px;
+      }
+      #main-panel.welcome-mode #chat-messages {
+        opacity: 0;
+      }
+      #main-panel.chat-mode #chat-messages {
+        opacity: 1;
+        transition: opacity 0.28s ease;
+      }
+    }
+  </style>
+</head>
+<body class="flex bg-white text-gray-800 select-none" style="height: 100dvh; min-height: 100dvh; overflow: hidden; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); box-sizing: border-box;">
+
+  <div class="vignette-overlay md:hidden"></div>
+
+  <div id="mobile-menu-btn-wrap" class="md:hidden fixed top-3 left-3" style="z-index: 9999;">
+    <button id="mobile-menu-open" class="ripple-btn text-gray-500 p-2.5 rounded-full bg-white/80 backdrop-blur-md border border-gray-200/60 shadow-md flex items-center justify-center" style="-webkit-tap-highlight-color:transparent;">
+      <i data-lucide="menu" class="w-5 h-5"></i>
+    </button>
+  </div>
+  <div id="mobile-top-actions" class="md:hidden fixed top-3 right-3" style="z-index: 9997;">
+    <div class="flex items-center bg-white/85 backdrop-blur-md border border-gray-200/60 shadow-md rounded-full h-10 px-1">
+      <button id="mobile-top-new-chat" class="ripple-btn w-9 h-9 rounded-full flex items-center justify-center text-gray-600">
+        <i data-lucide="square-pen" class="w-4 h-4"></i>
+      </button>
+      <button id="mobile-top-more" class="ripple-btn w-9 h-9 rounded-full flex items-center justify-center text-gray-600">
+        <i data-lucide="ellipsis" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </div>
+
+  <div id="sidebar-backdrop" class="md:hidden fixed inset-0 bg-black/30 z-40 hidden opacity-0 transition-opacity duration-300"></div>
+
+  <aside id="sidebar" class="w-full md:w-64 bg-[#f0f4f9] p-1.5 flex flex-col justify-between h-full text-xs fixed md:static inset-0 z-50 transform -translate-x-full md:translate-x-0 smooth-transition hidden md:flex touch-none overflow-hidden">
+    <div>
+      <div class="flex items-center justify-between mb-3 px-1 pt-1 profile-container">
+        <div class="flex items-center space-x-2 hide-on-mini">
+          <span class="font-medium text-[14px] md:text-[14px] text-[17px] text-gray-700 tracking-tight">MinsuGPT</span>
+        </div>
+        <button id="sidebar-toggle" class="ripple-btn text-gray-500 hover:bg-gray-200/50 p-1.5 rounded-lg transition-colors items-center justify-center hidden md:flex">
+          <i data-lucide="menu" class="w-4 h-4"></i>
+        </button>
+        <button id="sidebar-close-mobile" class="md:hidden ripple-btn text-gray-500 hover:bg-gray-200/50 p-2 rounded-xl transition-colors flex items-center justify-center">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div id="mobile-nav-group" class="space-y-1 mb-3 flex flex-col items-center w-full">
+        <button id="new-chat-btn" type="button" class="ripple-btn center-on-mini w-full flex items-center justify-start px-3 py-1.5 rounded-full text-gray-700 transition-all duration-200 overflow-hidden">
+          <i data-lucide="square-pen" class="w-4 h-4 shrink-0"></i>
+          <span class="sidebar-text ml-2.5 font-normal text-[13px]">새 채팅</span>
+        </button>
+        <button id="mobile-search-btn" class="ripple-btn center-on-mini w-full flex items-center justify-start px-3 py-1.5 rounded-full text-gray-600 transition-all duration-200 overflow-hidden">
+          <i data-lucide="search" class="w-4 h-4 shrink-0"></i>
+          <span class="sidebar-text ml-2.5 font-normal text-[13px]">채팅 검색</span>
+        </button>
+        <button id="mobile-library-btn" class="ripple-btn center-on-mini w-full flex items-center justify-start px-3 py-1.5 rounded-full text-gray-600 transition-all duration-200 overflow-hidden">
+          <i data-lucide="library" class="w-4 h-4 shrink-0"></i>
+          <span class="sidebar-text ml-2.5 font-normal text-[13px]">라이브러리</span>
+        </button>
+      </div>
+
+      <div class="hide-on-mini pr-0.5 space-y-0.5 text-[12px] w-full">
+        <div class="text-[11px] text-gray-400 font-medium px-2 mb-1">최근</div>
+        <div id="history-scroll">
+          <div id="chat-history-list" class="space-y-1"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pt-2 pb-0.5 border-t border-gray-200/60 flex items-center justify-between px-1 profile-container">
+      <div class="flex items-center justify-center overflow-hidden w-full">
+        <div class="w-6.5 h-6.5 min-w-[26px] min-h-[26px] aspect-square rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-[11px] shrink-0 object-cover">
+          <i data-lucide="user" class="w-3.5 h-3.5"></i>
+        </div>
+        <div class="leading-tight truncate sidebar-text hide-on-mini ml-2 flex-1">
+          <p class="font-normal text-gray-700 text-[12.5px] truncate">게스트</p>
+          <p class="text-[10px] text-gray-400">MinsuGPT</p>
+        </div>
+      </div>
+      <button class="ripple-btn text-gray-400 hover:bg-gray-200/50 p-1 rounded-lg shrink-0 hide-on-mini">
+        <i data-lucide="settings" class="w-3.5 h-3.5"></i>
+      </button>
+    </div>
+  </aside>
+
+  <main id="main-panel" class="flex-1 bg-gradient-custom flex flex-col items-center px-4 min-h-0 overflow-hidden welcome-mode" style="padding-bottom: 0;">
+    <div id="welcome-block" class="flex-1 flex flex-col items-center justify-center w-full">
+      <h1 class="text-2xl md:text-3xl font-light text-gray-600 tracking-tight text-center">
+        안녕하세요, <span class="font-normal text-gray-900">무엇을 도와드릴까요?</span>
+      </h1>
+    </div>
+
+    <div id="chat-messages" class="chat-column hidden flex-1 min-h-0 overflow-y-auto px-1 space-y-4 w-full" style="padding-bottom: 24px;"></div>
+
+    <div id="chat-error" class="chat-column hidden mb-2 px-3 py-2 text-[13px] text-red-600 bg-red-50 border border-red-100 rounded-xl w-full max-w-[40rem]"></div>
+
+    <div id="input-box" class="chat-column bg-white rounded-[24px] shadow-sm border border-gray-200/90 p-2.5 pb-2 flex flex-col justify-between min-h-[92px] transition-all duration-200 focus-within:shadow-md shrink-0 mb-3 w-full max-w-[40rem]">
+      
+      <div class="w-full mb-1 flex items-center mt-1">
+        <textarea 
+          id="chat-input"
+          rows="1"
+          placeholder="MinsuGPT 에게 물어보기" 
+          class="w-full bg-transparent outline-none text-gray-800 placeholder-gray-400 text-[14px] px-1.5 font-normal resize-none h-6 block max-h-36 align-middle"
+        ></textarea>
+      </div>
+      
+      <div class="flex items-center justify-between pt-1">
+        <button class="ripple-btn text-gray-500 hover:bg-gray-100 w-9 h-9 min-w-[36px] min-h-[36px] rounded-full flex items-center justify-center transition-colors">
+          <i data-lucide="plus" class="w-4 h-4 text-gray-500"></i>
+        </button>
+        
+        <div class="flex items-center space-x-1.5">
+          <div class="ripple-btn flex items-center space-x-1 cursor-pointer text-gray-500 hover:bg-gray-50 px-2.5 py-1.5 rounded-lg text-xs font-medium">
+            <span>사고 모델</span>
+            <i data-lucide="chevron-down" class="w-3 h-3"></i>
+          </div>
+          
+          <button 
+            id="send-btn"
+            disabled
+            class="w-9 h-9 min-w-[36px] min-h-[36px] rounded-full flex items-center justify-center bg-gray-100 text-gray-400 cursor-not-allowed transition-all duration-300"
+          >
+            <i data-lucide="arrow-up" class="w-3.5 h-3.5 stroke-[2.5]"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+  <div id="chat-search-modal" class="search-modal-backdrop">
+    <div class="search-modal">
+      <div class="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
+        <i data-lucide="search" class="w-4 h-4 text-gray-400"></i>
+        <input id="chat-search-input" type="text" placeholder="채팅 제목/내용 검색" class="flex-1 outline-none text-[14px] text-gray-700 placeholder-gray-400 bg-transparent">
+        <button id="chat-search-close" class="ripple-btn w-8 h-8 rounded-full hover:bg-gray-100 text-gray-500 flex items-center justify-center">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div class="search-layout">
+        <div class="search-list p-3 space-y-2 border-r border-gray-100" id="chat-search-results"></div>
+        <div class="search-preview p-4" id="chat-search-preview">
+          <p class="text-sm text-gray-400">왼쪽에서 채팅을 선택하면 미리보기가 표시됩니다.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="history-action-menu" class="history-action-menu">
+    <button id="history-action-edit" class="history-action-btn ripple-btn" type="button">
+      <i data-lucide="pencil" class="w-3.5 h-3.5"></i><span>편집</span>
+    </button>
+    <button id="history-action-duplicate" class="history-action-btn ripple-btn" type="button">
+      <i data-lucide="copy" class="w-3.5 h-3.5"></i><span>복제</span>
+    </button>
+    <button id="history-action-delete" class="history-action-btn ripple-btn danger" type="button">
+      <i data-lucide="trash-2" class="w-3.5 h-3.5"></i><span>삭제</span>
+    </button>
+  </div>
+  <div id="history-dialog" class="history-dialog-backdrop">
+    <div class="history-dialog">
+      <h3 id="history-dialog-title" class="text-[15px] font-medium text-gray-800 mb-2">제목 편집</h3>
+      <p id="history-dialog-desc" class="text-[12px] text-gray-500 mb-3">새 제목을 입력하세요.</p>
+      <input id="history-dialog-input" class="history-dialog-input mb-3" type="text" />
+      <div class="flex items-center justify-end gap-2">
+        <button id="history-dialog-cancel" class="ripple-btn px-3 py-2 text-[12px] rounded-full text-gray-600 hover:bg-gray-100" type="button">취소</button>
+        <button id="history-dialog-ok" class="ripple-btn px-3 py-2 text-[12px] rounded-full bg-[#74b9ff] text-white" type="button">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function iconNameMap(name) {
       const map = {
         menu: 'tabler:menu-2',
         x: 'tabler:circle-x-filled',
@@ -1668,3 +2878,6 @@ function iconNameMap(name) {
     }
 
     document.querySelectorAll('.ripple-btn').forEach(attachRipple);
+  </script>
+</body>
+</html>
