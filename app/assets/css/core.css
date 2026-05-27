@@ -1,5 +1,7 @@
-﻿body {
-      font-family: 'Google Sans', sans-serif;
+﻿@import url('https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,1..1000&display=swap');
+
+    html, body, button, input, textarea, select {
+      font-family: 'Google Sans Flex', sans-serif;
       letter-spacing: -0.015em;
     }
     .text-gray-900, .text-gray-800, .text-gray-700, .text-gray-600, .text-gray-500, .text-gray-400,

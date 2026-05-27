@@ -83,9 +83,6 @@ $appIndex = @"
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://code.iconify.design/iconify-icon/1.0.8/iconify-icon.min.js"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:ital,opsz,wght@0,17..18,400..700;1,17..18,400..700&display=swap" rel="stylesheet">
 $cssLinks
 </head>
 <body$bodyAttrs>
@@ -105,7 +102,8 @@ $shell = @'
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>MinsuGPT</title>
   <style>
-    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #ffffff; }
+    @import url('https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,1..1000&display=swap');
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #ffffff; font-family: 'Google Sans Flex', sans-serif; }
     iframe { border: 0; width: 100%; height: 100%; display: block; }
   </style>
 </head>

@@ -2,7 +2,7 @@
 /* ── 모바일 전용 사이드바 UI ── */
     @media (max-width: 767px) {
       body {
-        font-family: 'Google Sans', sans-serif !important;
+        font-family: 'Google Sans Flex', sans-serif !important;
         font-size: 1.03rem;
       }
       #sidebar {
