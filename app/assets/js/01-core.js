@@ -69,6 +69,7 @@ function iconNameMap(name) {
     let isSending = false;
     let isRegenerating = false;
     let loadingAnimStop = null;
+    const typingAnimStates = new Set();
 
     function normalizeAssistantMessage(m) {
       if (m.role !== 'assistant') return m;
@@ -607,6 +608,15 @@ function iconNameMap(name) {
       chatError.textContent = '';
     }
 
+    function scrollChatToBottom() {
+      if (!chatMessages) return;
+      const run = () => {
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      };
+      run();
+      requestAnimationFrame(() => requestAnimationFrame(run));
+    }
+
     function renderMarkdown(text) {
       if (!text) return '<div class="md-body"></div>';
       const html = typeof marked !== 'undefined'
@@ -617,7 +627,7 @@ function iconNameMap(name) {
 
     function setAssistantHtml(bubble, text) {
       bubble.innerHTML = renderMarkdown(text);
-      chatMessages.scrollTop = chatMessages.scrollHeight;
+      scrollChatToBottom();
     }
 
     async function copyTextToClipboard(text) {
@@ -726,4 +736,5 @@ function iconNameMap(name) {
       });
       updateUserActionVisibility();
       updateAssistantActionVisibility();
+      scrollChatToBottom();
     }

@@ -230,30 +230,194 @@ let userMessageMenuTarget = null;
       persistCurrentSession();
     }
 
-    function mountTypingLoader(parent) {
-      parent.innerHTML = '';
-      parent.classList.add('is-loading');
+    function createTypingDotsElement(label) {
       const dotsEl = document.createElement('div');
       dotsEl.className = 'typing-dots';
-      dotsEl.setAttribute('aria-label', '생각 중');
+      if (label) dotsEl.setAttribute('aria-label', label);
       for (let i = 0; i < 3; i++) {
         const dot = document.createElement('span');
         dot.style.transform = 'translate(' + SLOT_X[i] + 'px, 0px)';
         dotsEl.appendChild(dot);
       }
-      parent.appendChild(dotsEl);
-      let stopAnim = function() {};
-      let rafA = null;
-      let rafB = null;
-      rafA = requestAnimationFrame(() => {
-        rafB = requestAnimationFrame(() => {
-          stopAnim = startSwapLoadingAnimation(dotsEl);
-        });
+      return dotsEl;
+    }
+
+    function startSwapLoadingAnimation(container, state) {
+      const dots = [];
+      for (let i = 0; i < container.children.length; i++) {
+        const dot = container.children[i];
+        if (dot && dot.tagName === 'SPAN') dots.push(dot);
+      }
+      if (dots.length < 3) return function() {};
+
+      const xPos = [SLOT_X[0], SLOT_X[1], SLOT_X[2]];
+      const pairs = [[0, 1], [1, 2], [0, 2]];
+      const BOUNCE_MS = 1100;
+      const MOVE_MS = 520;
+      const CYCLE_MS = BOUNCE_MS + MOVE_MS;
+      state.t0 = performance.now();
+      state.lastTick = state.t0;
+      state.hiddenAt = 0;
+      let committedCycle = -1;
+
+      function arcY(t, sign) {
+        return sign * 7 * 4 * t * (1 - t);
+      }
+
+      function easeInOut(t) {
+        return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+      }
+
+      dots.forEach((d, i) => {
+        d.style.transform = 'translate(' + xPos[i] + 'px, 0px)';
       });
+
+      function tick(now) {
+        if (!state.alive) return;
+        if (!container.isConnected) {
+          state.alive = false;
+          typingAnimStates.delete(state);
+          return;
+        }
+
+        if (state.hiddenAt) {
+          state.t0 += now - state.hiddenAt;
+          state.hiddenAt = 0;
+        }
+
+        state.lastTick = now;
+        const elapsed = now - state.t0;
+        const cycleNum = Math.floor(elapsed / CYCLE_MS);
+        const local = elapsed - cycleNum * CYCLE_MS;
+        const pair = pairs[cycleNum % pairs.length];
+        const a = pair[0];
+        const b = pair[1];
+
+        if (local < BOUNCE_MS) {
+          const bounceT = local / 1000;
+          dots.forEach((d, i) => {
+            const y = Math.sin(bounceT * 4.2 + i * 0.85) * 4;
+            d.style.transform = 'translate(' + xPos[i] + 'px, ' + y + 'px)';
+          });
+        } else {
+          const st = Math.min(1, (local - BOUNCE_MS) / MOVE_MS);
+          const e = easeInOut(st);
+          const fromA = xPos[a];
+          const fromB = xPos[b];
+          const xA = fromA + (fromB - fromA) * e;
+          const xB = fromB + (fromA - fromB) * e;
+
+          dots.forEach((d, i) => {
+            let x = xPos[i];
+            let y = 0;
+            if (i === a) {
+              x = xA;
+              y = arcY(e, -1);
+            } else if (i === b) {
+              x = xB;
+              y = arcY(e, 1);
+            }
+            d.style.transform = 'translate(' + x + 'px, ' + y + 'px)';
+          });
+
+          if (st >= 1 && committedCycle !== cycleNum) {
+            const tmp = xPos[a];
+            xPos[a] = xPos[b];
+            xPos[b] = tmp;
+            committedCycle = cycleNum;
+          }
+        }
+
+        state.rafId = requestAnimationFrame(tick);
+      }
+
+      function stopInner() {
+        state.alive = false;
+        if (state.rafId) {
+          cancelAnimationFrame(state.rafId);
+          state.rafId = null;
+        }
+        typingAnimStates.delete(state);
+      }
+
+      state.rafId = requestAnimationFrame(tick);
+      typingAnimStates.add(state);
+      return stopInner;
+    }
+
+    function bootTypingAnimation(container) {
+      const state = {
+        alive: true,
+        container: container,
+        rafId: null,
+        bootIds: [],
+        stopInner: null,
+        t0: 0,
+        lastTick: 0,
+        hiddenAt: 0
+      };
+
+      const arm = () => {
+        if (!state.alive || !container.isConnected) return;
+        if (state.stopInner) state.stopInner();
+        state.stopInner = startSwapLoadingAnimation(container, state);
+      };
+
+      const id1 = requestAnimationFrame(() => {
+        if (!state.alive) return;
+        const id2 = requestAnimationFrame(arm);
+        state.bootIds.push(id2);
+      });
+      state.bootIds.push(id1);
+
       return function stop() {
-        if (rafA) cancelAnimationFrame(rafA);
-        if (rafB) cancelAnimationFrame(rafB);
-        stopAnim();
+        state.alive = false;
+        state.bootIds.forEach((id) => cancelAnimationFrame(id));
+        state.bootIds = [];
+        if (state.stopInner) state.stopInner();
+        typingAnimStates.delete(state);
+      };
+    }
+
+    document.addEventListener('visibilitychange', () => {
+      const now = performance.now();
+      if (document.hidden) {
+        typingAnimStates.forEach((s) => {
+          if (s.alive && !s.hiddenAt) s.hiddenAt = now;
+        });
+        return;
+      }
+      typingAnimStates.forEach((s) => {
+        if (!s.alive) return;
+        if (s.hiddenAt) {
+          s.t0 += now - s.hiddenAt;
+          s.hiddenAt = 0;
+        }
+        if (!s.rafId && s.container && s.container.isConnected) {
+          s.stopInner = startSwapLoadingAnimation(s.container, s);
+        }
+      });
+    });
+
+    setInterval(() => {
+      const now = performance.now();
+      typingAnimStates.forEach((s) => {
+        if (!s.alive || !s.container || !s.container.isConnected) return;
+        if (now - s.lastTick > 1400) {
+          if (s.stopInner) s.stopInner();
+          s.stopInner = startSwapLoadingAnimation(s.container, s);
+        }
+      });
+    }, 700);
+
+    function mountTypingLoader(parent) {
+      parent.innerHTML = '';
+      parent.classList.add('is-loading');
+      const dotsEl = createTypingDotsElement('생각 중');
+      parent.appendChild(dotsEl);
+      const stop = bootTypingAnimation(dotsEl);
+      return function stopAll() {
+        stop();
         parent.classList.remove('is-loading');
       };
     }
@@ -322,7 +486,7 @@ let userMessageMenuTarget = null;
         isRegenerating = false;
         syncRegenButtonsBusy();
         setSendLoading(false);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+        scrollChatToBottom();
       }
     }
 
@@ -460,21 +624,14 @@ let userMessageMenuTarget = null;
 
       const card = document.createElement('div');
       card.className = 'table-loading-card';
-      const dots = document.createElement('div');
-      dots.className = 'typing-dots';
-      dots.setAttribute('aria-label', '표 생성 중');
-      for (let i = 0; i < 3; i++) {
-        const dot = document.createElement('span');
-        dot.style.transform = 'translate(' + SLOT_X[i] + 'px, 0px)';
-        dots.appendChild(dot);
-      }
+      const dots = createTypingDotsElement('표 생성 중');
       const label = document.createElement('span');
       label.textContent = '표를 생성하는 중';
       card.appendChild(dots);
       card.appendChild(label);
       slot.appendChild(card);
       body.insertBefore(slot, tail);
-      slot._stopAnim = startSwapLoadingAnimation(dots);
+      slot._stopAnim = bootTypingAnimation(dots);
       chatMessages.scrollTop = chatMessages.scrollHeight;
       return slot;
     }

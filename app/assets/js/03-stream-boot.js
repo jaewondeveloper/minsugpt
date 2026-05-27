@@ -30,7 +30,7 @@ async function streamAssistantReply(bubble, fullText) {
         block.className = 'md-frozen-block';
         appendMarkdownBlock(block, md);
         slot.replaceWith(block);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+        scrollChatToBottom();
         await sleep(120);
       }
 
@@ -44,84 +44,6 @@ async function streamAssistantReply(bubble, fullText) {
       }
     }
 
-    function startSwapLoadingAnimation(container) {
-      const dots = [];
-      for (let i = 0; i < 3; i++) {
-        const dot = container.children[i];
-        if (dot && dot.tagName === 'SPAN') dots.push(dot);
-      }
-      if (dots.length < 3) return function() {};
-
-      const xPos = [SLOT_X[0], SLOT_X[1], SLOT_X[2]];
-      const pairs = [[0, 1], [1, 2], [0, 2]];
-      const BOUNCE_MS = 1100;
-      const MOVE_MS = 520;
-      const CYCLE_MS = BOUNCE_MS + MOVE_MS;
-      const t0 = performance.now();
-      let committedCycle = -1;
-
-      function arcY(t, sign) {
-        return sign * 7 * 4 * t * (1 - t);
-      }
-
-      function easeInOut(t) {
-        return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-      }
-
-      dots.forEach((d, i) => {
-        d.style.transform = 'translate(' + xPos[i] + 'px, 0px)';
-      });
-
-      function tick(now) {
-        const elapsed = now - t0;
-        const cycleNum = Math.floor(elapsed / CYCLE_MS);
-        const local = elapsed - cycleNum * CYCLE_MS;
-        const pair = pairs[cycleNum % pairs.length];
-        const a = pair[0];
-        const b = pair[1];
-
-        if (local < BOUNCE_MS) {
-          const bounceT = local / 1000;
-          dots.forEach((d, i) => {
-            const y = Math.sin(bounceT * 4.2 + i * 0.85) * 4;
-            d.style.transform = 'translate(' + xPos[i] + 'px, ' + y + 'px)';
-          });
-        } else {
-          const st = Math.min(1, (local - BOUNCE_MS) / MOVE_MS);
-          const e = easeInOut(st);
-          const fromA = xPos[a];
-          const fromB = xPos[b];
-          const xA = fromA + (fromB - fromA) * e;
-          const xB = fromB + (fromA - fromB) * e;
-
-          dots.forEach((d, i) => {
-            let x = xPos[i];
-            let y = 0;
-            if (i === a) {
-              x = xA;
-              y = arcY(e, -1);
-            } else if (i === b) {
-              x = xB;
-              y = arcY(e, 1);
-            }
-            d.style.transform = 'translate(' + x + 'px, ' + y + 'px)';
-          });
-
-          if (st >= 1 && committedCycle !== cycleNum) {
-            const tmp = xPos[a];
-            xPos[a] = xPos[b];
-            xPos[b] = tmp;
-            committedCycle = cycleNum;
-          }
-        }
-
-        raf = requestAnimationFrame(tick);
-      }
-
-      let raf = requestAnimationFrame(tick);
-      return function() { cancelAnimationFrame(raf); };
-    }
-
     function createLoadingBubble() {
       const wrap = document.createElement('div');
       wrap.className = 'flex w-full justify-start';
@@ -129,7 +51,7 @@ async function streamAssistantReply(bubble, fullText) {
       bubble.className = 'msg-assistant';
       wrap.appendChild(bubble);
       chatMessages.appendChild(wrap);
-      chatMessages.scrollTop = chatMessages.scrollHeight;
+      scrollChatToBottom();
       const stop = mountTypingLoader(bubble);
       loadingAnimStop = stop;
       return { wrap, bubble, stop };
@@ -172,7 +94,7 @@ async function streamAssistantReply(bubble, fullText) {
         else wrap.classList.add('actions-ready');
       }
       chatMessages.appendChild(wrap);
-      chatMessages.scrollTop = chatMessages.scrollHeight;
+      scrollChatToBottom();
       if (role === 'user') updateUserActionVisibility();
       if (role === 'assistant') updateAssistantActionVisibility();
       return { bubble, wrap };
@@ -235,6 +157,7 @@ async function streamAssistantReply(bubble, fullText) {
       if (chatHistory.length) {
         showChatLayout();
         reRenderChatFromHistory();
+        scrollChatToBottom();
       } else {
         showWelcomeLayout();
       }
@@ -280,6 +203,7 @@ async function streamAssistantReply(bubble, fullText) {
       setSendLoading(true);
 
       const loader = createLoadingBubble();
+      scrollChatToBottom();
 
       try {
         const res = await fetch(API_BASE + '/api/ai/chat', {
@@ -332,7 +256,7 @@ async function streamAssistantReply(bubble, fullText) {
         console.error('[MinsuGPT]', err);
       } finally {
         setSendLoading(false);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+        scrollChatToBottom();
         chatInput.focus();
       }
     }
