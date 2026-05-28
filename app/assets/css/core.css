@@ -792,6 +792,16 @@
       background: #fee2e2;
       color: #991b1b;
     }
+    .profile-menu-account {
+      padding: 7px 9px 8px;
+      margin-bottom: 4px;
+      border-bottom: 1px solid #eef2f7;
+      font-size: 11px;
+      color: #6b7280;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
     .history-dialog-backdrop {
       position: fixed;
       inset: 0;

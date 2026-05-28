@@ -803,6 +803,16 @@
       background: #fee2e2;
       color: #991b1b;
     }
+    .profile-menu-account {
+      padding: 7px 9px 8px;
+      margin-bottom: 4px;
+      border-bottom: 1px solid #eef2f7;
+      font-size: 11px;
+      color: #6b7280;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
     .history-dialog-backdrop {
       position: fixed;
       inset: 0;
@@ -1313,7 +1323,7 @@
         </div>
         <div class="leading-tight truncate sidebar-text hide-on-mini ml-2 flex-1">
           <p id="profile-name" class="font-normal text-gray-700 text-[12.5px] truncate">게스트</p>
-          <p class="text-[10px] text-gray-400">MinsuGPT</p>
+          <p id="profile-subtext" class="text-[10px] text-gray-400 truncate whitespace-nowrap">게스트</p>
         </div>
       </div>
       <button id="profile-menu-trigger-btn" class="ripple-btn text-gray-400 hover:bg-gray-200/50 p-1 rounded-lg shrink-0 hide-on-mini" title="프로필 메뉴">
@@ -1408,6 +1418,7 @@
     </button>
   </div>
   <div id="profile-menu" class="profile-menu">
+    <div id="profile-menu-account" class="profile-menu-account">게스트</div>
     <button id="profile-menu-settings" class="profile-menu-btn ripple-btn" type="button">
       <i data-lucide="settings" class="w-3.5 h-3.5"></i><span>설정</span>
     </button>
@@ -1757,8 +1768,10 @@
     const profileMenuTriggerBtn = document.getElementById('profile-menu-trigger-btn');
     const profileMenuSettingsBtn = document.getElementById('profile-menu-settings');
     const profileMenuLogoutBtn = document.getElementById('profile-menu-logout');
+    const profileMenuAccountEl = document.getElementById('profile-menu-account');
     const profileNameEl = document.getElementById('profile-name');
     const profileAvatarEl = document.getElementById('profile-avatar');
+    const profileSubtextEl = document.getElementById('profile-subtext');
     const historyActionMenu = document.getElementById('history-action-menu');
     const historyActionEdit = document.getElementById('history-action-edit');
     const historyActionDuplicate = document.getElementById('history-action-duplicate');
@@ -2209,7 +2222,10 @@
     function syncProfileAvatarFromName() {
       if (!profileNameEl || !profileAvatarEl) return;
       const displayName = (authUser && (authUser.name || authUser.username)) || '게스트';
+      const accountText = (authUser && (authUser.email || authUser.username)) || '게스트';
       profileNameEl.textContent = displayName;
+      if (profileSubtextEl) profileSubtextEl.textContent = accountText;
+      if (profileMenuAccountEl) profileMenuAccountEl.textContent = accountText;
       const name = displayName.trim();
       const first = name ? Array.from(name)[0] : 'G';
       profileAvatarEl.textContent = first;

@@ -323,8 +323,10 @@ function iconNameMap(name) {
     const profileMenuTriggerBtn = document.getElementById('profile-menu-trigger-btn');
     const profileMenuSettingsBtn = document.getElementById('profile-menu-settings');
     const profileMenuLogoutBtn = document.getElementById('profile-menu-logout');
+    const profileMenuAccountEl = document.getElementById('profile-menu-account');
     const profileNameEl = document.getElementById('profile-name');
     const profileAvatarEl = document.getElementById('profile-avatar');
+    const profileSubtextEl = document.getElementById('profile-subtext');
     const historyActionMenu = document.getElementById('history-action-menu');
     const historyActionEdit = document.getElementById('history-action-edit');
     const historyActionDuplicate = document.getElementById('history-action-duplicate');
@@ -775,7 +777,10 @@ function iconNameMap(name) {
     function syncProfileAvatarFromName() {
       if (!profileNameEl || !profileAvatarEl) return;
       const displayName = (authUser && (authUser.name || authUser.username)) || '게스트';
+      const accountText = (authUser && (authUser.email || authUser.username)) || '게스트';
       profileNameEl.textContent = displayName;
+      if (profileSubtextEl) profileSubtextEl.textContent = accountText;
+      if (profileMenuAccountEl) profileMenuAccountEl.textContent = accountText;
       const name = displayName.trim();
       const first = name ? Array.from(name)[0] : 'G';
       profileAvatarEl.textContent = first;

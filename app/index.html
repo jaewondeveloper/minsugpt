@@ -77,7 +77,7 @@
         </div>
         <div class="leading-tight truncate sidebar-text hide-on-mini ml-2 flex-1">
           <p id="profile-name" class="font-normal text-gray-700 text-[12.5px] truncate">게스트</p>
-          <p class="text-[10px] text-gray-400">MinsuGPT</p>
+          <p id="profile-subtext" class="text-[10px] text-gray-400 truncate whitespace-nowrap">게스트</p>
         </div>
       </div>
       <button id="profile-menu-trigger-btn" class="ripple-btn text-gray-400 hover:bg-gray-200/50 p-1 rounded-lg shrink-0 hide-on-mini" title="프로필 메뉴">
@@ -171,6 +171,7 @@
     </button>
   </div>
   <div id="profile-menu" class="profile-menu">
+    <div id="profile-menu-account" class="profile-menu-account">게스트</div>
     <button id="profile-menu-settings" class="profile-menu-btn ripple-btn" type="button">
       <i data-lucide="settings" class="w-3.5 h-3.5"></i><span>설정</span>
     </button>
