@@ -489,8 +489,12 @@
         const existingSession = getStoredAuth();
         if (existingSession) {
             const isExistingAdmin = !!(existingSession.user && existingSession.user.username === 'admin');
-            if (isAdminMode && !isExistingAdmin) {
-                localStorage.removeItem(AUTH_STORAGE_KEY);
+            if (isAdminMode) {
+                if (!isExistingAdmin) {
+                    localStorage.removeItem(AUTH_STORAGE_KEY);
+                }
+                // 관리자 모드에서는 자동 리디렉트로 루프가 생길 수 있어
+                // 명시적 로그인 성공 시에만 관리자 도메인으로 이동한다.
             } else {
                 window.location.replace(loginRedirect);
             }
