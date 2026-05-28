@@ -127,7 +127,7 @@ $shell = @'
         }
       }
       if (!getAuth()) {
-        window.location.replace('login.html');
+        window.location.replace('login');
         return;
       }
       const iframe = document.createElement('iframe');

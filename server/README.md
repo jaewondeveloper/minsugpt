@@ -16,7 +16,7 @@ Default URL: `http://127.0.0.1:5000`
 
 - `MINSUGPT_AUTH_SECRET` (required in production)
 - `MINSUGPT_TOKEN_MAX_AGE_SECONDS` (default: `864000`, 10 days)
-- `MINSUGPT_ALLOWED_ORIGINS` (default: `https://minsugpt.kro.kr,https://admin.minsugpt.kro.kr`)
+- `MINSUGPT_ALLOWED_ORIGINS` (default: `https://minsugpt.kro.kr,http://minsugpt.kro.kr,https://admin.minsugpt.kro.kr,http://admin.minsugpt.kro.kr`)
 - `PORT` (default: `5000`)
 
 ## API

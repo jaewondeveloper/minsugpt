@@ -361,7 +361,7 @@
         const NORMAL_LOGIN_MS = 24 * 60 * 60 * 1000;
         const REMEMBER_LOGIN_MS = 10 * 24 * 60 * 60 * 1000;
         const LOGIN_REDIRECT = './';
-        const ADMIN_LOGIN_REDIRECT = 'https://admin.minsugpt.kro.kr/';
+        const ADMIN_LOGIN_REDIRECT = 'http://admin.minsugpt.kro.kr/';
         const initialAdminMode = new URLSearchParams(window.location.search).get('mode') === 'admin' || window.location.hostname.startsWith('admin.');
         let isAdminMode = initialAdminMode;
         let loginRedirect = isAdminMode ? ADMIN_LOGIN_REDIRECT : LOGIN_REDIRECT;
@@ -486,8 +486,14 @@
             }
         }
 
-        if (getStoredAuth()) {
-            window.location.replace(loginRedirect);
+        const existingSession = getStoredAuth();
+        if (existingSession) {
+            const isExistingAdmin = !!(existingSession.user && existingSession.user.username === 'admin');
+            if (isAdminMode && !isExistingAdmin) {
+                localStorage.removeItem(AUTH_STORAGE_KEY);
+            } else {
+                window.location.replace(loginRedirect);
+            }
         }
 
         googleStubBtn.addEventListener('click', () => {

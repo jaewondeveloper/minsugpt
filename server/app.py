@@ -24,7 +24,7 @@ DEFAULT_USERS = [
 app = Flask(__name__)
 app.config["JSON_AS_ASCII"] = False
 
-default_origins = "https://minsugpt.kro.kr,https://admin.minsugpt.kro.kr"
+default_origins = "https://minsugpt.kro.kr,http://minsugpt.kro.kr,https://admin.minsugpt.kro.kr,http://admin.minsugpt.kro.kr"
 allowed_origins_raw = os.environ.get("MINSUGPT_ALLOWED_ORIGINS", default_origins)
 ALLOWED_ORIGINS = [o.strip() for o in allowed_origins_raw.split(",") if o.strip()]
 CORS(app, resources={r"/api/*": {"origins": ALLOWED_ORIGINS}})

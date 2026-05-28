@@ -61,7 +61,7 @@ function iconNameMap(name) {
     }
 
     function resolveLoginUrlFromApp() {
-      return window.location.origin + '/login.html';
+      return window.location.origin + '/login';
     }
 
     function parseAuthSessionRaw() {
@@ -364,6 +364,14 @@ function iconNameMap(name) {
     }
 
     function openHistoryDialog(options) {
+      if (!historyDialog || !historyDialogTitle || !historyDialogDesc || !historyDialogInput || !historyDialogOk) {
+        if (options.showInput) {
+          const v = window.prompt(options.description || options.title || '입력', options.defaultValue || '');
+          return Promise.resolve(v === null ? null : v);
+        }
+        const ok = window.confirm(options.description || options.title || '확인');
+        return Promise.resolve(ok);
+      }
       const { title, description, showInput, defaultValue, okText } = options;
       historyDialogTitle.textContent = title || '확인';
       historyDialogDesc.textContent = description || '';
@@ -394,11 +402,17 @@ function iconNameMap(name) {
       historyDialog.classList.remove('show');
     }
 
-    function removeSessionById(id) {
+    async function removeSessionById(id) {
+      try {
+        await deleteSessionFromServer(id);
+      } catch (err) {
+        console.error('[MinsuGPT][deleteSession]', err);
+        showError('채팅 삭제에 실패했습니다.');
+        return false;
+      }
       sessionsStore.sessions = sessionsStore.sessions.filter((s) => s.id !== id);
       if (sessionsStore.currentId === id) sessionsStore.currentId = sessionsStore.sessions[0]?.id || null;
       saveStore();
-      deleteSessionFromServer(id).catch((err) => console.error('[MinsuGPT][deleteSession]', err));
       if (!sessionsStore.currentId) {
         startNewChat();
       } else if (currentSessionId === id) {
@@ -406,9 +420,10 @@ function iconNameMap(name) {
       } else {
         renderSidebar();
       }
+      return true;
     }
 
-    function duplicateSessionById(id) {
+    async function duplicateSessionById(id) {
       const src = getSession(id);
       if (!src) return;
       const copy = {
@@ -418,7 +433,11 @@ function iconNameMap(name) {
         updatedAt: new Date().toISOString()
       };
       upsertSession(copy);
-      syncSessionToServer(copy).catch((err) => console.error('[MinsuGPT][duplicateSession]', err));
+      try {
+        await syncSessionToServer(copy);
+      } catch (err) {
+        console.error('[MinsuGPT][duplicateSession]', err);
+      }
       loadSession(copy.id);
     }
 
@@ -724,18 +743,26 @@ function iconNameMap(name) {
       profileAvatarEl.textContent = first;
     }
 
-    historyActionEdit.addEventListener('click', async () => {
+    historyActionEdit.addEventListener('click', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
       if (!historyActionTargetId) return;
       await renameSessionById(historyActionTargetId);
       closeHistoryActionMenu();
     });
-    historyActionDuplicate.addEventListener('click', () => {
+    historyActionDuplicate.addEventListener('click', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
       if (!historyActionTargetId) return;
-      duplicateSessionById(historyActionTargetId);
+      const targetId = historyActionTargetId;
+      await duplicateSessionById(targetId);
       closeHistoryActionMenu();
     });
-    historyActionDelete.addEventListener('click', async () => {
+    historyActionDelete.addEventListener('click', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
       if (!historyActionTargetId) return;
+      const targetId = historyActionTargetId;
       const ok = await openHistoryDialog({
         title: '채팅 삭제',
         description: '이 채팅을 삭제할까요? 이 작업은 되돌릴 수 없습니다.',
@@ -743,7 +770,8 @@ function iconNameMap(name) {
         okText: '삭제'
       });
       if (!ok) return;
-      removeSessionById(historyActionTargetId);
+      const removed = await removeSessionById(targetId);
+      if (!removed) return;
       closeHistoryActionMenu();
     });
     historyDialogCancel.addEventListener('click', () => closeHistoryDialog(null));
