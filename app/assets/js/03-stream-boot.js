@@ -311,6 +311,10 @@ async function streamAssistantReply(bubble, fullText) {
     }
 
     function triggerLogout() {
+      if (authReverifyTimer) {
+        window.clearInterval(authReverifyTimer);
+        authReverifyTimer = null;
+      }
       clearAuthSession();
       window.top.location.href = loginPageUrl();
     }
@@ -368,6 +372,7 @@ async function streamAssistantReply(bubble, fullText) {
       saveStore();
       renderSidebar();
       syncProfileAvatarFromName();
+      startAuthStatusPolling();
       startGradientAnimation();
       showWelcomeLayout();
     })();

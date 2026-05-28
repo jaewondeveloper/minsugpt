@@ -95,6 +95,7 @@ function iconNameMap(name) {
     const AUTH_CHAT_SESSIONS_PATH = '/api/chat/sessions';
     const AUTH_STORAGE_KEY = 'minsugpt_auth_v1';
     const AUTH_VERIFY_ON_LOAD = true;
+    const AUTH_VERIFY_INTERVAL_MS = 15000;
     const NORMAL_LOGIN_MS = 24 * 60 * 60 * 1000;
     const STORAGE_KEY = 'minsugpt_chats_v1';
     const SLOT_X = [0, 11, 22];
@@ -142,14 +143,30 @@ function iconNameMap(name) {
       }
     }
 
-    async function ensureAuthOrRedirect() {
+    async function handleAuthFailure(code) {
+      const reason = code || 'invalid';
+      if (reason === 'account_disabled') {
+        await openAuthStateDialog('계정 비활성화', '계정이 비활성화되어 로그아웃됩니다.');
+      } else if (reason === 'user_not_found') {
+        await openAuthStateDialog('계정 삭제', '계정이 삭제되어 로그아웃됩니다.');
+      } else if (reason === 'unapproved') {
+        await openAuthStateDialog('승인 대기', '아직 관리자 승인이 완료되지 않았습니다.');
+      }
+      clearAuthSession();
+      window.top.location.href = loginPageUrl();
+    }
+
+    async function reverifyAuthSession(options) {
+      const opts = options || {};
+      const quiet = !!opts.quiet;
+      if (authReverifyInFlight) return false;
       const session = getAuthSession();
       if (!session) {
+        clearAuthSession();
         window.top.location.href = loginPageUrl();
-        return null;
+        return false;
       }
-      authUser = session.user || null;
-      if (!AUTH_VERIFY_ON_LOAD) return session;
+      authReverifyInFlight = true;
       try {
         const res = await fetch(AUTH_BASE + AUTH_VERIFY_PATH, {
           method: 'GET',
@@ -160,20 +177,48 @@ function iconNameMap(name) {
         const merged = Object.assign({}, session, { user: data.user || session.user || null });
         setAuthSession(merged);
         authUser = merged.user || null;
-        return merged;
+        syncProfileAvatarFromName();
+        return true;
       } catch (err) {
-        const code = (err && err.message) ? err.message : 'invalid';
-        if (code === 'account_disabled') {
-          await openAuthStateDialog('계정 비활성화', '계정이 비활성화되어 로그아웃됩니다.');
-        } else if (code === 'user_not_found') {
-          await openAuthStateDialog('계정 삭제', '계정이 삭제되어 로그아웃됩니다.');
-        } else if (code === 'unapproved') {
-          await openAuthStateDialog('승인 대기', '아직 관리자 승인이 완료되지 않았습니다.');
+        const reason = (err && err.message) ? err.message : 'invalid';
+        if (quiet && (reason === 'invalid' || reason === 'invalid_token' || reason === 'missing_token')) {
+          clearAuthSession();
+          window.top.location.href = loginPageUrl();
+          return false;
         }
-        clearAuthSession();
+        await handleAuthFailure(reason);
+        return false;
+      } finally {
+        authReverifyInFlight = false;
+      }
+    }
+
+    function startAuthStatusPolling() {
+      if (authReverifyTimer) return;
+      authReverifyTimer = window.setInterval(() => {
+        reverifyAuthSession({ quiet: true }).catch(() => {});
+      }, AUTH_VERIFY_INTERVAL_MS);
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          reverifyAuthSession({ quiet: true }).catch(() => {});
+        }
+      });
+      window.addEventListener('focus', () => {
+        reverifyAuthSession({ quiet: true }).catch(() => {});
+      });
+    }
+
+    async function ensureAuthOrRedirect() {
+      const session = getAuthSession();
+      if (!session) {
         window.top.location.href = loginPageUrl();
         return null;
       }
+      authUser = session.user || null;
+      if (!AUTH_VERIFY_ON_LOAD) return session;
+      const ok = await reverifyAuthSession({ quiet: false });
+      if (!ok) return null;
+      return getAuthSession();
     }
 
     function authHeaders() {
@@ -187,7 +232,13 @@ function iconNameMap(name) {
       const headers = Object.assign({}, opts.headers || {}, authHeaders());
       const res = await fetch(AUTH_BASE + path, Object.assign({}, opts, { headers }));
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || data.message || ('요청 실패 (' + res.status + ')'));
+      if (!res.ok) {
+        const code = data.error || '';
+        if (code === 'account_disabled' || code === 'user_not_found' || code === 'unapproved' || code === 'invalid_token' || code === 'missing_token') {
+          await handleAuthFailure(code);
+        }
+        throw new Error(data.error || data.message || ('요청 실패 (' + res.status + ')'));
+      }
       return data;
     }
 
@@ -351,6 +402,8 @@ function iconNameMap(name) {
     let authUser = null;
     let sessionsStore = { sessions: [], currentId: null };
     let isLoadingSessions = false;
+    let authReverifyTimer = null;
+    let authReverifyInFlight = false;
 
     if (typeof marked !== 'undefined') {
       marked.setOptions({ breaks: true, gfm: true });
