@@ -44,3 +44,12 @@ Always edit `minsugpt-6.html` first, then run the build script.
 ## API
 
 `POST https://sigan.onrender.com/api/ai/chat`
+
+## Auth (Flask)
+
+- Frontend auth pages: `login.html`, `signup.html`
+- Backend auth server: `server/app.py`
+- Endpoints:
+  - `POST /api/auth/login`
+  - `POST /api/auth/signup`
+  - `GET /api/auth/verify`

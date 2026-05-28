@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>회원가입 - MinsuGPT</title>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,1..1000&display=swap');
+        :root {
+            --primary-color: #000;
+            --border-color: #e5e7eb;
+            --text-main: #000;
+            --text-muted: #6b7280;
+            --error-color: #ef4444;
+            --success-color: #10b981;
+        }
+        * { box-sizing: border-box; font-family: 'Google Sans Flex', sans-serif; }
+        body {
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            background-color: #fff;
+            color: var(--text-main);
+        }
+        header {
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: 650;
+            cursor: pointer;
+            text-decoration: none;
+            color: #000;
+        }
+        .main-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            max-width: 400px;
+            margin: -50px auto 0 auto;
+            width: 100%;
+        }
+        h1 {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            letter-spacing: -0.5px;
+            text-align: center;
+        }
+        .step-indicator {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-bottom: 30px;
+        }
+        .form-step {
+            width: 100%;
+            display: none;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .form-step.active {
+            display: flex;
+        }
+        input {
+            width: 100%;
+            padding: 14px 20px;
+            border: 1px solid var(--border-color);
+            border-radius: 999px;
+            font-size: 16px;
+            outline: none;
+        }
+        input:focus {
+            border-color: #000;
+        }
+        .btn-container {
+            width: 100%;
+            margin-top: 10px;
+        }
+        .login-btn {
+            width: 100%;
+            padding: 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 999px;
+            background: #fff;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: all 0.2s;
+            color: #000;
+            text-decoration: none;
+        }
+        .login-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .login-btn.black {
+            background-color: #000;
+            color: #fff;
+            border-color: #000;
+        }
+        .login-btn.black:hover:not(:disabled) {
+            background-color: #222;
+        }
+        .password-conditions {
+            padding: 0 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .condition {
+            font-size: 13px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .condition.met {
+            color: var(--success-color);
+        }
+        .icon-wrap {
+            display: flex;
+            align-items: center;
+            width: 14px;
+        }
+        .footer-info {
+            margin-top: 24px;
+            font-size: 14px;
+            color: var(--text-muted);
+            text-align: center;
+        }
+        .footer-info a {
+            color: #000;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .error-msg {
+            color: var(--error-color);
+            font-size: 13px;
+            padding: 0 10px;
+            display: none;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 20px;
+            max-width: 340px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        .modal-content h2 {
+            margin-top: 0;
+            font-size: 20px;
+        }
+        .modal-content p {
+            color: var(--text-muted);
+            font-size: 15px;
+            line-height: 1.5;
+            margin-bottom: 25px;
+        }
+        @media (max-width: 480px) {
+            h1 { font-size: 24px; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <a href="index.html" class="logo">MinsuGPT</a>
+    </header>
+
+    <div class="main-container">
+        <h1>계정 만들기</h1>
+        <div class="step-indicator" id="stepIndicator">1 / 4 단계</div>
+
+        <div class="form-step active" id="step1">
+            <input type="text" id="nameInput" placeholder="이름을 입력하세요" required>
+            <div class="btn-container">
+                <button class="login-btn black" id="next1" disabled>다음</button>
+            </div>
+        </div>
+
+        <div class="form-step" id="step2">
+            <input type="email" id="emailInput" placeholder="이메일 주소를 입력하세요" required>
+            <div class="btn-container">
+                <button class="login-btn black" id="next2" disabled>다음</button>
+            </div>
+            <button class="login-btn" type="button" style="border:none; margin-top:10px; font-size:14px; color:var(--text-muted);" onclick="goToStep(1)">이전 단계로</button>
+        </div>
+
+        <div class="form-step" id="step3">
+            <input type="date" id="birthdateInput" required>
+            <div style="font-size: 12px; color: var(--text-muted); padding: 0 10px;">생년월일을 선택해주세요.</div>
+            <div class="btn-container">
+                <button class="login-btn black" id="next3" disabled>다음</button>
+            </div>
+            <button class="login-btn" type="button" style="border:none; margin-top:10px; font-size:14px; color:var(--text-muted);" onclick="goToStep(2)">이전 단계로</button>
+        </div>
+
+        <div class="form-step" id="step4">
+            <input type="password" id="passwordInput" placeholder="비밀번호를 입력하세요" required>
+            <div class="password-conditions">
+                <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">아래 조건 모두 만족:</div>
+                <div class="condition" id="condLen"><span class="icon-wrap" id="iconLen"><i data-lucide="circle" style="width:12px;"></i></span> 최소 8자 이상</div>
+                <div class="condition" id="condAlphaNum"><span class="icon-wrap" id="iconAlphaNum"><i data-lucide="circle" style="width:12px;"></i></span> 문자 및 숫자 조합</div>
+                <div class="condition" id="condSpecial"><span class="icon-wrap" id="iconSpecial"><i data-lucide="circle" style="width:12px;"></i></span> 특수문자 포함</div>
+            </div>
+            <input type="password" id="confirmPasswordInput" placeholder="비밀번호를 한번 더 입력하세요" required>
+            <div id="pwMatchError" class="error-msg">비밀번호가 일치하지 않습니다.</div>
+            <div class="btn-container">
+                <button class="login-btn black" id="finishBtn" disabled>계정 생성하기</button>
+            </div>
+            <button class="login-btn" type="button" style="border:none; margin-top:10px; font-size:14px; color:var(--text-muted);" onclick="goToStep(3)">이전 단계로</button>
+        </div>
+
+        <div class="footer-info">
+            이미 계정이 있으신가요? <a href="login.html">로그인</a>
+        </div>
+    </div>
+
+    <div id="successModal" class="modal">
+        <div class="modal-content">
+            <h2>계정 생성 완료!</h2>
+            <p>계정이 성공적으로 생성되었습니다.<br>관리자 승인 후 서비스를 이용할 수 있습니다.</p>
+            <button class="login-btn black" onclick="location.href='login.html'">로그인하러 가기</button>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+        const AUTH_BASE = 'https://jaewondev6.pythonanywhere.com';
+        const AUTH_SIGNUP_PATH = '/api/auth/signup';
+
+        let currentStep = 1;
+        const nameInput = document.getElementById('nameInput');
+        const emailInput = document.getElementById('emailInput');
+        const birthdateInput = document.getElementById('birthdateInput');
+        const passwordInput = document.getElementById('passwordInput');
+        const confirmPasswordInput = document.getElementById('confirmPasswordInput');
+        const next1 = document.getElementById('next1');
+        const next2 = document.getElementById('next2');
+        const next3 = document.getElementById('next3');
+        const finishBtn = document.getElementById('finishBtn');
+
+        function goToStep(step) {
+            document.querySelectorAll('.form-step').forEach((el) => el.classList.remove('active'));
+            document.getElementById('step' + step).classList.add('active');
+            document.getElementById('stepIndicator').innerText = step + ' / 4 단계';
+            currentStep = step;
+        }
+        window.goToStep = goToStep;
+
+        nameInput.addEventListener('input', () => {
+            next1.disabled = nameInput.value.trim().length < 2;
+        });
+        next1.addEventListener('click', () => goToStep(2));
+
+        emailInput.addEventListener('input', () => {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            next2.disabled = !emailRegex.test(emailInput.value.trim());
+        });
+        next2.addEventListener('click', () => goToStep(3));
+
+        birthdateInput.addEventListener('input', () => {
+            next3.disabled = !birthdateInput.value;
+        });
+        next3.addEventListener('click', () => goToStep(4));
+
+        function updateCondition(rowId, iconId, met) {
+            const row = document.getElementById(rowId);
+            const iconWrap = document.getElementById(iconId);
+            if (met) {
+                row.classList.add('met');
+                iconWrap.innerHTML = '<i data-lucide="check-circle-2" style="width:12px; color:var(--success-color);"></i>';
+            } else {
+                row.classList.remove('met');
+                iconWrap.innerHTML = '<i data-lucide="circle" style="width:12px;"></i>';
+            }
+            lucide.createIcons();
+        }
+
+        function validatePassword() {
+            const pw = passwordInput.value;
+            const confirmPw = confirmPasswordInput.value;
+            const hasLetter = /[a-zA-Z]/.test(pw) || /[ㄱ-ㅎㅏ-ㅣ가-힣]/.test(pw);
+            const hasNumber = /[0-9]/.test(pw);
+            const hasSpecial = /[!@#$%^&*(),.?":{}|<>\-_]/.test(pw);
+            const isLenMet = pw.length >= 8;
+            const isAlphaNumMet = hasLetter && hasNumber;
+            const isSpecialMet = hasSpecial;
+            updateCondition('condLen', 'iconLen', isLenMet);
+            updateCondition('condAlphaNum', 'iconAlphaNum', isAlphaNumMet);
+            updateCondition('condSpecial', 'iconSpecial', isSpecialMet);
+            const isMatch = pw === confirmPw && pw.length > 0;
+            document.getElementById('pwMatchError').style.display = (confirmPw.length > 0 && !isMatch) ? 'block' : 'none';
+            finishBtn.disabled = !(isLenMet && isAlphaNumMet && isSpecialMet && isMatch);
+        }
+
+        passwordInput.addEventListener('input', validatePassword);
+        confirmPasswordInput.addEventListener('input', validatePassword);
+
+        finishBtn.addEventListener('click', async () => {
+            finishBtn.disabled = true;
+            finishBtn.innerText = '처리 중...';
+            try {
+                const response = await fetch(AUTH_BASE + AUTH_SIGNUP_PATH, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: emailInput.value.trim(),
+                        email: emailInput.value.trim(),
+                        password: passwordInput.value,
+                        name: nameInput.value.trim(),
+                        birthdate: birthdateInput.value
+                    })
+                });
+                const result = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    alert(result.error || '회원가입 중 오류가 발생했습니다.');
+                    finishBtn.disabled = false;
+                    finishBtn.innerText = '계정 생성하기';
+                    return;
+                }
+                document.getElementById('successModal').style.display = 'flex';
+            } catch (error) {
+                console.error('Signup Error:', error);
+                alert('서버와 통신 중 오류가 발생했습니다.');
+                finishBtn.disabled = false;
+                finishBtn.innerText = '계정 생성하기';
+            }
+        });
+    </script>
+</body>
+</html>

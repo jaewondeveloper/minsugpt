@@ -208,7 +208,7 @@ async function streamAssistantReply(bubble, fullText) {
       try {
         const res = await fetch(API_BASE + '/api/ai/chat', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
           body: JSON.stringify({
             message: text,
             messages: historyForApi(),
@@ -282,9 +282,18 @@ async function streamAssistantReply(bubble, fullText) {
       setTimeout(hideError, 1500);
       if (isMobile()) closeMobileSidebar();
     });
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', () => {
+        clearAuthSession();
+        window.top.location.href = loginPageUrl();
+      });
+    }
 
-    (function init() {
+    (async function init() {
+      const auth = await ensureAuthOrRedirect();
+      if (!auth) return;
       renderSidebar();
+      syncProfileAvatarFromName();
       startGradientAnimation();
       const store = loadStore();
       if (store.currentId && getSession(store.currentId)) {
@@ -427,6 +436,27 @@ async function streamAssistantReply(bubble, fullText) {
         if (this.value.trim().length > 0) sendMessage();
       }
     });
+
+    window.addEventListener('keydown', function(e) {
+      if (e.isComposing) return;
+      const target = e.target;
+      const isInputLike = !!(target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable));
+      const key = (e.key || '').toLowerCase();
+
+      if (e.ctrlKey && e.shiftKey && key === 'd') {
+        e.preventDefault();
+        e.stopPropagation();
+        startNewChat();
+        return;
+      }
+
+      if (e.ctrlKey && e.shiftKey && !e.altKey && !e.metaKey && key === 'f') {
+        if (isInputLike || (searchModal && searchModal.classList.contains('show'))) return;
+        e.preventDefault();
+        e.stopPropagation();
+        openSearchModal();
+      }
+    }, true);
 
     // ── 모바일 키보드 대응: visualViewport로 키보드 높이 감지 → main-panel 높이 조정 ──
     if (window.visualViewport && isMobile()) {

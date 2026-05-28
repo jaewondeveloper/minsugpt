@@ -656,6 +656,29 @@
     #new-chat-btn.nav-item-active {
       background-color: #e0e0e0 !important;
     }
+    .new-chat-shortcut, .search-shortcut {
+      margin-left: auto;
+      font-size: 11px;
+      color: #6b7280;
+      opacity: 0;
+      transform: translateX(4px);
+      transition: opacity 0.16s ease, transform 0.16s ease;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    @media (min-width: 768px) {
+      #new-chat-btn:hover .new-chat-shortcut,
+      #new-chat-btn:focus-visible .new-chat-shortcut,
+      #mobile-search-btn:hover .search-shortcut,
+      #mobile-search-btn:focus-visible .search-shortcut {
+        opacity: 1;
+        transform: translateX(0);
+      }
+      .sidebar-mini #new-chat-btn .new-chat-shortcut,
+      .sidebar-mini #mobile-search-btn .search-shortcut {
+        display: none;
+      }
+    }
     .history-main {
       flex: 1;
       min-width: 0;

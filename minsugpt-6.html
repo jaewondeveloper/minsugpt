@@ -667,6 +667,29 @@
     #new-chat-btn.nav-item-active {
       background-color: #e0e0e0 !important;
     }
+    .new-chat-shortcut, .search-shortcut {
+      margin-left: auto;
+      font-size: 11px;
+      color: #6b7280;
+      opacity: 0;
+      transform: translateX(4px);
+      transition: opacity 0.16s ease, transform 0.16s ease;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    @media (min-width: 768px) {
+      #new-chat-btn:hover .new-chat-shortcut,
+      #new-chat-btn:focus-visible .new-chat-shortcut,
+      #mobile-search-btn:hover .search-shortcut,
+      #mobile-search-btn:focus-visible .search-shortcut {
+        opacity: 1;
+        transform: translateX(0);
+      }
+      .sidebar-mini #new-chat-btn .new-chat-shortcut,
+      .sidebar-mini #mobile-search-btn .search-shortcut {
+        display: none;
+      }
+    }
     .history-main {
       flex: 1;
       min-width: 0;
@@ -1176,10 +1199,12 @@
         <button id="new-chat-btn" type="button" class="ripple-btn center-on-mini w-full flex items-center justify-start px-3 py-1.5 rounded-full text-gray-700 transition-all duration-200 overflow-hidden">
           <i data-lucide="square-pen" class="w-4 h-4 shrink-0"></i>
           <span class="sidebar-text ml-2.5 font-normal text-[13px]">새 채팅</span>
+          <span class="new-chat-shortcut">Ctrl + Shift + D</span>
         </button>
         <button id="mobile-search-btn" class="ripple-btn center-on-mini w-full flex items-center justify-start px-3 py-1.5 rounded-full text-gray-600 transition-all duration-200 overflow-hidden">
           <i data-lucide="search" class="w-4 h-4 shrink-0"></i>
           <span class="sidebar-text ml-2.5 font-normal text-[13px]">채팅 검색</span>
+          <span class="search-shortcut">Ctrl + Shift + F</span>
         </button>
         <button id="mobile-library-btn" class="ripple-btn center-on-mini w-full flex items-center justify-start px-3 py-1.5 rounded-full text-gray-600 transition-all duration-200 overflow-hidden">
           <i data-lucide="library" class="w-4 h-4 shrink-0"></i>
@@ -1197,15 +1222,15 @@
 
     <div class="pt-2 pb-0.5 border-t border-gray-200/60 flex items-center justify-between px-1 profile-container">
       <div class="flex items-center justify-center overflow-hidden w-full">
-        <div class="w-6.5 h-6.5 min-w-[26px] min-h-[26px] aspect-square rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-[11px] shrink-0 object-cover">
-          <i data-lucide="user" class="w-3.5 h-3.5"></i>
+        <div id="profile-avatar" class="w-6.5 h-6.5 min-w-[26px] min-h-[26px] aspect-square rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-[11px] shrink-0 object-cover">
+          게
         </div>
         <div class="leading-tight truncate sidebar-text hide-on-mini ml-2 flex-1">
-          <p class="font-normal text-gray-700 text-[12.5px] truncate">게스트</p>
+          <p id="profile-name" class="font-normal text-gray-700 text-[12.5px] truncate">게스트</p>
           <p class="text-[10px] text-gray-400">MinsuGPT</p>
         </div>
       </div>
-      <button class="ripple-btn text-gray-400 hover:bg-gray-200/50 p-1 rounded-lg shrink-0 hide-on-mini">
+      <button id="profile-logout-btn" class="ripple-btn text-gray-400 hover:bg-gray-200/50 p-1 rounded-lg shrink-0 hide-on-mini" title="로그아웃">
         <i data-lucide="settings" class="w-3.5 h-3.5"></i>
       </button>
     </div>
@@ -1369,6 +1394,11 @@
     renderRoundedIcons(document);
 
     const API_BASE = 'https://sigan.onrender.com';
+    const AUTH_BASE = 'https://jaewondev6.pythonanywhere.com';
+    const AUTH_LOGIN_PATH = '/api/auth/login';
+    const AUTH_VERIFY_PATH = '/api/auth/verify';
+    const AUTH_STORAGE_KEY = 'minsugpt_auth_v1';
+    const AUTH_VERIFY_ON_LOAD = true;
     const STORAGE_KEY = 'minsugpt_chats_v1';
     const SLOT_X = [0, 11, 22];
 
@@ -1378,6 +1408,53 @@
     let isRegenerating = false;
     let loadingAnimStop = null;
     const typingAnimStates = new Set();
+
+    function loginPageUrl() {
+      return window.location.origin + window.location.pathname.replace(/\/app\/index\.html$/, '/login.html');
+    }
+
+    function clearAuthSession() {
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+    }
+
+    function getAuthSession() {
+      try {
+        const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || !parsed.token) return null;
+        return parsed;
+      } catch {
+        return null;
+      }
+    }
+
+    async function ensureAuthOrRedirect() {
+      const session = getAuthSession();
+      if (!session) {
+        window.top.location.href = loginPageUrl();
+        return null;
+      }
+      if (!AUTH_VERIFY_ON_LOAD) return session;
+      try {
+        const res = await fetch(AUTH_BASE + AUTH_VERIFY_PATH, {
+          method: 'GET',
+          headers: { Authorization: 'Bearer ' + session.token }
+        });
+        if (!res.ok) throw new Error('invalid');
+        return session;
+      } catch {
+        clearAuthSession();
+        window.top.location.href = loginPageUrl();
+        return null;
+      }
+    }
+
+    function authHeaders() {
+      const session = getAuthSession();
+      if (!session) return {};
+      return { Authorization: 'Bearer ' + session.token };
+    }
 
     function normalizeAssistantMessage(m) {
       if (m.role !== 'assistant') return m;
@@ -1477,6 +1554,9 @@
     const searchPreview = document.getElementById('chat-search-preview');
     const libraryBtn = document.getElementById('mobile-library-btn');
     const mobileSearchBtn = document.getElementById('mobile-search-btn');
+    const logoutBtn = document.getElementById('profile-logout-btn');
+    const profileNameEl = document.getElementById('profile-name');
+    const profileAvatarEl = document.getElementById('profile-avatar');
     const historyActionMenu = document.getElementById('history-action-menu');
     const historyActionEdit = document.getElementById('history-action-edit');
     const historyActionDuplicate = document.getElementById('history-action-duplicate');
@@ -1862,6 +1942,13 @@
 
     function closeSearchModal() {
       searchModal.classList.remove('show');
+    }
+
+    function syncProfileAvatarFromName() {
+      if (!profileNameEl || !profileAvatarEl) return;
+      const name = (profileNameEl.textContent || '').trim();
+      const first = name ? Array.from(name)[0] : 'G';
+      profileAvatarEl.textContent = first;
     }
 
     historyActionEdit.addEventListener('click', async () => {
@@ -2492,7 +2579,7 @@
       try {
         const res = await fetch(API_BASE + '/api/ai/chat', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
           body: JSON.stringify({
             message: userText,
             messages: historyForApi(idx),
@@ -2944,7 +3031,7 @@
       try {
         const res = await fetch(API_BASE + '/api/ai/chat', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
           body: JSON.stringify({
             message: text,
             messages: historyForApi(),
@@ -3018,9 +3105,18 @@
       setTimeout(hideError, 1500);
       if (isMobile()) closeMobileSidebar();
     });
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', () => {
+        clearAuthSession();
+        window.top.location.href = loginPageUrl();
+      });
+    }
 
-    (function init() {
+    (async function init() {
+      const auth = await ensureAuthOrRedirect();
+      if (!auth) return;
       renderSidebar();
+      syncProfileAvatarFromName();
       startGradientAnimation();
       const store = loadStore();
       if (store.currentId && getSession(store.currentId)) {
@@ -3163,6 +3259,27 @@
         if (this.value.trim().length > 0) sendMessage();
       }
     });
+
+    window.addEventListener('keydown', function(e) {
+      if (e.isComposing) return;
+      const target = e.target;
+      const isInputLike = !!(target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable));
+      const key = (e.key || '').toLowerCase();
+
+      if (e.ctrlKey && e.shiftKey && key === 'd') {
+        e.preventDefault();
+        e.stopPropagation();
+        startNewChat();
+        return;
+      }
+
+      if (e.ctrlKey && e.shiftKey && !e.altKey && !e.metaKey && key === 'f') {
+        if (isInputLike || (searchModal && searchModal.classList.contains('show'))) return;
+        e.preventDefault();
+        e.stopPropagation();
+        openSearchModal();
+      }
+    }, true);
 
     // ── 모바일 키보드 대응: visualViewport로 키보드 높이 감지 → main-panel 높이 조정 ──
     if (window.visualViewport && isMobile()) {

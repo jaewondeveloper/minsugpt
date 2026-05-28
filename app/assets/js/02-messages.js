@@ -445,7 +445,7 @@ let userMessageMenuTarget = null;
       try {
         const res = await fetch(API_BASE + '/api/ai/chat', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
           body: JSON.stringify({
             message: userText,
             messages: historyForApi(idx),

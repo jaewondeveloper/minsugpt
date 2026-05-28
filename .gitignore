@@ -1,3 +1,5 @@
 .DS_Store
 Thumbs.db
 *.log
+server/auth.db
+server/.venv/

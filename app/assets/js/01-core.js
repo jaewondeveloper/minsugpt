@@ -61,6 +61,11 @@ function iconNameMap(name) {
     renderRoundedIcons(document);
 
     const API_BASE = 'https://sigan.onrender.com';
+    const AUTH_BASE = 'https://jaewondev6.pythonanywhere.com';
+    const AUTH_LOGIN_PATH = '/api/auth/login';
+    const AUTH_VERIFY_PATH = '/api/auth/verify';
+    const AUTH_STORAGE_KEY = 'minsugpt_auth_v1';
+    const AUTH_VERIFY_ON_LOAD = true;
     const STORAGE_KEY = 'minsugpt_chats_v1';
     const SLOT_X = [0, 11, 22];
 
@@ -70,6 +75,53 @@ function iconNameMap(name) {
     let isRegenerating = false;
     let loadingAnimStop = null;
     const typingAnimStates = new Set();
+
+    function loginPageUrl() {
+      return window.location.origin + window.location.pathname.replace(/\/app\/index\.html$/, '/login.html');
+    }
+
+    function clearAuthSession() {
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+    }
+
+    function getAuthSession() {
+      try {
+        const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || !parsed.token) return null;
+        return parsed;
+      } catch {
+        return null;
+      }
+    }
+
+    async function ensureAuthOrRedirect() {
+      const session = getAuthSession();
+      if (!session) {
+        window.top.location.href = loginPageUrl();
+        return null;
+      }
+      if (!AUTH_VERIFY_ON_LOAD) return session;
+      try {
+        const res = await fetch(AUTH_BASE + AUTH_VERIFY_PATH, {
+          method: 'GET',
+          headers: { Authorization: 'Bearer ' + session.token }
+        });
+        if (!res.ok) throw new Error('invalid');
+        return session;
+      } catch {
+        clearAuthSession();
+        window.top.location.href = loginPageUrl();
+        return null;
+      }
+    }
+
+    function authHeaders() {
+      const session = getAuthSession();
+      if (!session) return {};
+      return { Authorization: 'Bearer ' + session.token };
+    }
 
     function normalizeAssistantMessage(m) {
       if (m.role !== 'assistant') return m;
@@ -169,6 +221,9 @@ function iconNameMap(name) {
     const searchPreview = document.getElementById('chat-search-preview');
     const libraryBtn = document.getElementById('mobile-library-btn');
     const mobileSearchBtn = document.getElementById('mobile-search-btn');
+    const logoutBtn = document.getElementById('profile-logout-btn');
+    const profileNameEl = document.getElementById('profile-name');
+    const profileAvatarEl = document.getElementById('profile-avatar');
     const historyActionMenu = document.getElementById('history-action-menu');
     const historyActionEdit = document.getElementById('history-action-edit');
     const historyActionDuplicate = document.getElementById('history-action-duplicate');
@@ -554,6 +609,13 @@ function iconNameMap(name) {
 
     function closeSearchModal() {
       searchModal.classList.remove('show');
+    }
+
+    function syncProfileAvatarFromName() {
+      if (!profileNameEl || !profileAvatarEl) return;
+      const name = (profileNameEl.textContent || '').trim();
+      const first = name ? Array.from(name)[0] : 'G';
+      profileAvatarEl.textContent = first;
     }
 
     historyActionEdit.addEventListener('click', async () => {

@@ -16,10 +16,12 @@
         <button id="new-chat-btn" type="button" class="ripple-btn center-on-mini w-full flex items-center justify-start px-3 py-1.5 rounded-full text-gray-700 transition-all duration-200 overflow-hidden">
           <i data-lucide="square-pen" class="w-4 h-4 shrink-0"></i>
           <span class="sidebar-text ml-2.5 font-normal text-[13px]">새 채팅</span>
+          <span class="new-chat-shortcut">Ctrl + Shift + D</span>
         </button>
         <button id="mobile-search-btn" class="ripple-btn center-on-mini w-full flex items-center justify-start px-3 py-1.5 rounded-full text-gray-600 transition-all duration-200 overflow-hidden">
           <i data-lucide="search" class="w-4 h-4 shrink-0"></i>
           <span class="sidebar-text ml-2.5 font-normal text-[13px]">채팅 검색</span>
+          <span class="search-shortcut">Ctrl + Shift + F</span>
         </button>
         <button id="mobile-library-btn" class="ripple-btn center-on-mini w-full flex items-center justify-start px-3 py-1.5 rounded-full text-gray-600 transition-all duration-200 overflow-hidden">
           <i data-lucide="library" class="w-4 h-4 shrink-0"></i>
@@ -37,15 +39,15 @@
 
     <div class="pt-2 pb-0.5 border-t border-gray-200/60 flex items-center justify-between px-1 profile-container">
       <div class="flex items-center justify-center overflow-hidden w-full">
-        <div class="w-6.5 h-6.5 min-w-[26px] min-h-[26px] aspect-square rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-[11px] shrink-0 object-cover">
-          <i data-lucide="user" class="w-3.5 h-3.5"></i>
+        <div id="profile-avatar" class="w-6.5 h-6.5 min-w-[26px] min-h-[26px] aspect-square rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-[11px] shrink-0 object-cover">
+          게
         </div>
         <div class="leading-tight truncate sidebar-text hide-on-mini ml-2 flex-1">
-          <p class="font-normal text-gray-700 text-[12.5px] truncate">게스트</p>
+          <p id="profile-name" class="font-normal text-gray-700 text-[12.5px] truncate">게스트</p>
           <p class="text-[10px] text-gray-400">MinsuGPT</p>
         </div>
       </div>
-      <button class="ripple-btn text-gray-400 hover:bg-gray-200/50 p-1 rounded-lg shrink-0 hide-on-mini">
+      <button id="profile-logout-btn" class="ripple-btn text-gray-400 hover:bg-gray-200/50 p-1 rounded-lg shrink-0 hide-on-mini" title="로그아웃">
         <i data-lucide="settings" class="w-3.5 h-3.5"></i>
       </button>
     </div>
