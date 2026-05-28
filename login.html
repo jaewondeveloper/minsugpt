@@ -361,9 +361,10 @@
         const NORMAL_LOGIN_MS = 24 * 60 * 60 * 1000;
         const REMEMBER_LOGIN_MS = 10 * 24 * 60 * 60 * 1000;
         const LOGIN_REDIRECT = './';
+        const ADMIN_LOGIN_REDIRECT = 'https://admin.minsugpt.kro.kr/';
         const initialAdminMode = new URLSearchParams(window.location.search).get('mode') === 'admin' || window.location.hostname.startsWith('admin.');
         let isAdminMode = initialAdminMode;
-        let loginRedirect = isAdminMode ? 'admin/index.html' : LOGIN_REDIRECT;
+        let loginRedirect = isAdminMode ? ADMIN_LOGIN_REDIRECT : LOGIN_REDIRECT;
 
         const emailToggleBtn = document.getElementById('emailToggleBtn');
         const emailForm = document.getElementById('emailForm');
@@ -385,7 +386,7 @@
         let pendingResetPassword = '';
 
         function applyModeUI() {
-            loginRedirect = isAdminMode ? 'admin/index.html' : LOGIN_REDIRECT;
+            loginRedirect = isAdminMode ? ADMIN_LOGIN_REDIRECT : LOGIN_REDIRECT;
             if (isAdminMode) {
                 topRightInfo.innerHTML = '<strong>GPT ADMIN</strong>으로 로그인 <i class="ti ti-chevron-down" style="font-size: 14px;"></i>';
                 signupFooter.style.display = 'none';
@@ -455,13 +456,21 @@
         function saveAuth(token, user, rememberLogin) {
             const duration = rememberLogin ? REMEMBER_LOGIN_MS : NORMAL_LOGIN_MS;
             const now = Date.now();
-            localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({
+            const session = {
                 token: token,
                 user: user || null,
                 remember: !!rememberLogin,
                 issuedAt: new Date(now).toISOString(),
                 expiresAt: new Date(now + duration).toISOString()
-            }));
+            };
+            localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
+            return session;
+        }
+
+        function buildAdminRedirectUrl(session) {
+            const raw = JSON.stringify(session || {});
+            const encoded = btoa(unescape(encodeURIComponent(raw)));
+            return ADMIN_LOGIN_REDIRECT + '#auth=' + encodeURIComponent(encoded);
         }
 
         function parseToken(payload) {
@@ -516,8 +525,8 @@
                     if (isAdminMode && (!result.user || result.user.username !== 'admin')) {
                         throw new Error('admin 계정만 관리자 로그인 가능합니다.');
                     }
-                    saveAuth(token, result.user || null, rememberLoginInput.checked);
-                    location.href = loginRedirect;
+                    const saved = saveAuth(token, result.user || null, rememberLoginInput.checked);
+                    location.href = isAdminMode ? buildAdminRedirectUrl(saved) : loginRedirect;
                     return;
                 }
                 if (result.error === 'unapproved') {

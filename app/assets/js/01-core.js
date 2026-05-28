@@ -61,8 +61,7 @@ function iconNameMap(name) {
     }
 
     function resolveLoginUrlFromApp() {
-      const nextPath = window.location.pathname.replace(/\/app(?:\/index\.html)?\/?$/, '/login.html');
-      return window.location.origin + nextPath;
+      return window.location.origin + '/login.html';
     }
 
     function parseAuthSessionRaw() {
