@@ -48,6 +48,38 @@
             display: flex;
             align-items: center;
             gap: 6px;
+            cursor: pointer;
+        }
+        .mode-menu {
+            position: fixed;
+            z-index: 1200;
+            min-width: 150px;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
+            padding: 6px;
+            display: none;
+        }
+        .mode-menu.show { display: block; }
+        .mode-menu-btn {
+            width: 100%;
+            border: 0;
+            border-radius: 8px;
+            background: transparent;
+            text-align: left;
+            padding: 8px 10px;
+            font-size: 13px;
+            color: #374151;
+            cursor: pointer;
+        }
+        .mode-menu-btn:hover {
+            background: #f3f4f6;
+        }
+        .mode-menu-btn.active {
+            background: #eaf2ff;
+            color: #1d4ed8;
+            font-weight: 600;
         }
         .main-container {
             flex: 1;
@@ -264,6 +296,10 @@
             <i class="ti ti-chevron-down" style="font-size: 14px;"></i>
         </div>
     </header>
+    <div id="modeMenu" class="mode-menu">
+        <button id="modeNormalBtn" class="mode-menu-btn" type="button">MinsuGPT</button>
+        <button id="modeAdminBtn" class="mode-menu-btn" type="button">GPT ADMIN</button>
+    </div>
 
     <div class="main-container">
         <h1>계정에 로그인하기</h1>
@@ -325,8 +361,9 @@
         const NORMAL_LOGIN_MS = 24 * 60 * 60 * 1000;
         const REMEMBER_LOGIN_MS = 10 * 24 * 60 * 60 * 1000;
         const LOGIN_REDIRECT = './';
-        const isAdminMode = new URLSearchParams(window.location.search).get('mode') === 'admin' || window.location.hostname.startsWith('admin.');
-        const loginRedirect = isAdminMode ? 'admin/index.html' : LOGIN_REDIRECT;
+        const initialAdminMode = new URLSearchParams(window.location.search).get('mode') === 'admin' || window.location.hostname.startsWith('admin.');
+        let isAdminMode = initialAdminMode;
+        let loginRedirect = isAdminMode ? 'admin/index.html' : LOGIN_REDIRECT;
 
         const emailToggleBtn = document.getElementById('emailToggleBtn');
         const emailForm = document.getElementById('emailForm');
@@ -341,13 +378,62 @@
         const resetPasswordSubmitBtn = document.getElementById('resetPasswordSubmitBtn');
         const topRightInfo = document.getElementById('topRightInfo');
         const signupFooter = document.getElementById('signupFooter');
+        const modeMenu = document.getElementById('modeMenu');
+        const modeNormalBtn = document.getElementById('modeNormalBtn');
+        const modeAdminBtn = document.getElementById('modeAdminBtn');
         let pendingResetIdentifier = '';
         let pendingResetPassword = '';
 
-        if (isAdminMode) {
-            topRightInfo.innerHTML = '<strong>GPT ADMIN</strong>으로 로그인 <i class="ti ti-chevron-down" style="font-size: 14px;"></i>';
-            signupFooter.style.display = 'none';
+        function applyModeUI() {
+            loginRedirect = isAdminMode ? 'admin/index.html' : LOGIN_REDIRECT;
+            if (isAdminMode) {
+                topRightInfo.innerHTML = '<strong>GPT ADMIN</strong>으로 로그인 <i class="ti ti-chevron-down" style="font-size: 14px;"></i>';
+                signupFooter.style.display = 'none';
+            } else {
+                topRightInfo.innerHTML = '<strong>MinsuGPT</strong>에 로그인 중입니다 <i class="ti ti-chevron-down" style="font-size: 14px;"></i>';
+                signupFooter.style.display = '';
+            }
+            modeNormalBtn.classList.toggle('active', !isAdminMode);
+            modeAdminBtn.classList.toggle('active', isAdminMode);
+            const nextUrl = new URL(window.location.href);
+            if (isAdminMode) nextUrl.searchParams.set('mode', 'admin');
+            else nextUrl.searchParams.delete('mode');
+            window.history.replaceState({}, '', nextUrl.toString());
         }
+
+        function closeModeMenu() {
+            modeMenu.classList.remove('show');
+        }
+
+        function openModeMenu() {
+            const rect = topRightInfo.getBoundingClientRect();
+            const left = Math.max(8, rect.right - 150);
+            modeMenu.style.top = (rect.bottom + 6) + 'px';
+            modeMenu.style.left = left + 'px';
+            modeMenu.classList.add('show');
+        }
+
+        topRightInfo.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (modeMenu.classList.contains('show')) closeModeMenu();
+            else openModeMenu();
+        });
+        modeNormalBtn.addEventListener('click', () => {
+            isAdminMode = false;
+            applyModeUI();
+            closeModeMenu();
+        });
+        modeAdminBtn.addEventListener('click', () => {
+            isAdminMode = true;
+            applyModeUI();
+            closeModeMenu();
+        });
+        document.addEventListener('click', (e) => {
+            if (!modeMenu.classList.contains('show')) return;
+            if (e.target.closest('#modeMenu') || e.target.closest('#topRightInfo')) return;
+            closeModeMenu();
+        });
+        applyModeUI();
 
         function getStoredAuth() {
             try {

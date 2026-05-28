@@ -60,6 +60,11 @@ function iconNameMap(name) {
       });
     }
 
+    function resolveLoginUrlFromApp() {
+      const nextPath = window.location.pathname.replace(/\/app(?:\/index\.html)?\/?$/, '/login.html');
+      return window.location.origin + nextPath;
+    }
+
     function parseAuthSessionRaw() {
       try {
         const raw = localStorage.getItem('minsugpt_auth_v1');
@@ -78,7 +83,7 @@ function iconNameMap(name) {
     }
 
     if (!parseAuthSessionRaw()) {
-      window.top.location.href = window.location.origin + window.location.pathname.replace(/\/app\/index\.html$/, '/login.html');
+      window.top.location.href = resolveLoginUrlFromApp();
       throw new Error('MinsuGPT auth required');
     }
 
@@ -103,7 +108,7 @@ function iconNameMap(name) {
     const typingAnimStates = new Set();
 
     function loginPageUrl() {
-      return window.location.origin + window.location.pathname.replace(/\/app\/index\.html$/, '/login.html');
+      return resolveLoginUrlFromApp();
     }
 
     function clearAuthSession() {
