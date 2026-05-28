@@ -155,13 +155,21 @@ function iconNameMap(name) {
           method: 'GET',
           headers: { Authorization: 'Bearer ' + session.token }
         });
-        if (!res.ok) throw new Error('invalid');
         const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'invalid');
         const merged = Object.assign({}, session, { user: data.user || session.user || null });
         setAuthSession(merged);
         authUser = merged.user || null;
         return merged;
-      } catch {
+      } catch (err) {
+        const code = (err && err.message) ? err.message : 'invalid';
+        if (code === 'account_disabled') {
+          await openAuthStateDialog('계정 비활성화', '계정이 비활성화되어 로그아웃됩니다.');
+        } else if (code === 'user_not_found') {
+          await openAuthStateDialog('계정 삭제', '계정이 삭제되어 로그아웃됩니다.');
+        } else if (code === 'unapproved') {
+          await openAuthStateDialog('승인 대기', '아직 관리자 승인이 완료되지 않았습니다.');
+        }
         clearAuthSession();
         window.top.location.href = loginPageUrl();
         return null;
@@ -327,8 +335,13 @@ function iconNameMap(name) {
     const historyDialogInput = document.getElementById('history-dialog-input');
     const historyDialogCancel = document.getElementById('history-dialog-cancel');
     const historyDialogOk = document.getElementById('history-dialog-ok');
+    const authStateModal = document.getElementById('auth-state-modal');
+    const authStateTitle = document.getElementById('auth-state-title');
+    const authStateDesc = document.getElementById('auth-state-desc');
+    const authStateOk = document.getElementById('auth-state-ok');
     let historyActionTargetId = null;
     let historyDialogResolver = null;
+    let authStateResolver = null;
     let gradientRAF = null;
     let gradientFrozen = false;
     let gradientTickStart = performance.now();
@@ -401,6 +414,31 @@ function iconNameMap(name) {
       }
       historyDialog.classList.remove('show');
     }
+
+    function openAuthStateDialog(title, description) {
+      if (!authStateModal || !authStateTitle || !authStateDesc || !authStateOk) {
+        alert((title || '알림') + '\n' + (description || '로그인이 필요합니다.'));
+        return Promise.resolve();
+      }
+      authStateTitle.textContent = title || '알림';
+      authStateDesc.textContent = description || '로그인이 필요합니다.';
+      authStateModal.classList.add('show');
+      return new Promise((resolve) => {
+        authStateResolver = resolve;
+      });
+    }
+
+    function closeAuthStateDialog() {
+      if (authStateResolver) {
+        authStateResolver();
+        authStateResolver = null;
+      }
+      if (authStateModal) authStateModal.classList.remove('show');
+    }
+    if (authStateOk) authStateOk.addEventListener('click', closeAuthStateDialog);
+    if (authStateModal) authStateModal.addEventListener('click', (e) => {
+      if (e.target === authStateModal) closeAuthStateDialog();
+    });
 
     async function removeSessionById(id) {
       try {

@@ -844,6 +844,36 @@
       border-color: #93c5fd;
       box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.16);
     }
+    .auth-state-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 14500;
+      background: rgba(15, 23, 42, 0.35);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+    .auth-state-backdrop.show {
+      display: flex;
+      opacity: 1;
+    }
+    .auth-state-dialog {
+      width: min(360px, 92vw);
+      border-radius: 18px;
+      border: 1px solid #e5e7eb;
+      background: #fff;
+      box-shadow: 0 18px 48px rgba(15, 23, 42, 0.22);
+      padding: 16px;
+      transform: translateY(10px) scale(0.97);
+      transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+      text-align: center;
+    }
+    .auth-state-backdrop.show .auth-state-dialog {
+      transform: translateY(0) scale(1);
+    }
     #chat-messages.chat-active {
       padding-top: 52px;
     }
@@ -1396,6 +1426,13 @@
       </div>
     </div>
   </div>
+  <div id="auth-state-modal" class="auth-state-backdrop">
+    <div class="auth-state-dialog">
+      <h3 id="auth-state-title" class="text-[15px] font-medium text-gray-800 mb-2">알림</h3>
+      <p id="auth-state-desc" class="text-[12px] text-gray-500 mb-3">로그인이 필요합니다.</p>
+      <button id="auth-state-ok" class="ripple-btn px-3 py-2 text-[12px] rounded-full bg-[#74b9ff] text-white" type="button">확인</button>
+    </div>
+  </div>
 
   <script>
     function iconNameMap(name) {
@@ -1552,13 +1589,21 @@
           method: 'GET',
           headers: { Authorization: 'Bearer ' + session.token }
         });
-        if (!res.ok) throw new Error('invalid');
         const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'invalid');
         const merged = Object.assign({}, session, { user: data.user || session.user || null });
         setAuthSession(merged);
         authUser = merged.user || null;
         return merged;
-      } catch {
+      } catch (err) {
+        const code = (err && err.message) ? err.message : 'invalid';
+        if (code === 'account_disabled') {
+          await openAuthStateDialog('계정 비활성화', '계정이 비활성화되어 로그아웃됩니다.');
+        } else if (code === 'user_not_found') {
+          await openAuthStateDialog('계정 삭제', '계정이 삭제되어 로그아웃됩니다.');
+        } else if (code === 'unapproved') {
+          await openAuthStateDialog('승인 대기', '아직 관리자 승인이 완료되지 않았습니다.');
+        }
         clearAuthSession();
         window.top.location.href = loginPageUrl();
         return null;
@@ -1724,8 +1769,13 @@
     const historyDialogInput = document.getElementById('history-dialog-input');
     const historyDialogCancel = document.getElementById('history-dialog-cancel');
     const historyDialogOk = document.getElementById('history-dialog-ok');
+    const authStateModal = document.getElementById('auth-state-modal');
+    const authStateTitle = document.getElementById('auth-state-title');
+    const authStateDesc = document.getElementById('auth-state-desc');
+    const authStateOk = document.getElementById('auth-state-ok');
     let historyActionTargetId = null;
     let historyDialogResolver = null;
+    let authStateResolver = null;
     let gradientRAF = null;
     let gradientFrozen = false;
     let gradientTickStart = performance.now();
@@ -1798,6 +1848,31 @@
       }
       historyDialog.classList.remove('show');
     }
+
+    function openAuthStateDialog(title, description) {
+      if (!authStateModal || !authStateTitle || !authStateDesc || !authStateOk) {
+        alert((title || '알림') + '\n' + (description || '로그인이 필요합니다.'));
+        return Promise.resolve();
+      }
+      authStateTitle.textContent = title || '알림';
+      authStateDesc.textContent = description || '로그인이 필요합니다.';
+      authStateModal.classList.add('show');
+      return new Promise((resolve) => {
+        authStateResolver = resolve;
+      });
+    }
+
+    function closeAuthStateDialog() {
+      if (authStateResolver) {
+        authStateResolver();
+        authStateResolver = null;
+      }
+      if (authStateModal) authStateModal.classList.remove('show');
+    }
+    if (authStateOk) authStateOk.addEventListener('click', closeAuthStateDialog);
+    if (authStateModal) authStateModal.addEventListener('click', (e) => {
+      if (e.target === authStateModal) closeAuthStateDialog();
+    });
 
     async function removeSessionById(id) {
       try {

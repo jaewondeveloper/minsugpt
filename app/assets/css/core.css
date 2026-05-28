@@ -833,6 +833,36 @@
       border-color: #93c5fd;
       box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.16);
     }
+    .auth-state-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 14500;
+      background: rgba(15, 23, 42, 0.35);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+    .auth-state-backdrop.show {
+      display: flex;
+      opacity: 1;
+    }
+    .auth-state-dialog {
+      width: min(360px, 92vw);
+      border-radius: 18px;
+      border: 1px solid #e5e7eb;
+      background: #fff;
+      box-shadow: 0 18px 48px rgba(15, 23, 42, 0.22);
+      padding: 16px;
+      transform: translateY(10px) scale(0.97);
+      transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+      text-align: center;
+    }
+    .auth-state-backdrop.show .auth-state-dialog {
+      transform: translateY(0) scale(1);
+    }
     #chat-messages.chat-active {
       padding-top: 52px;
     }
