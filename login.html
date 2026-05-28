@@ -259,8 +259,8 @@
 <body>
     <header>
         <a href="index.html" class="logo">MinsuGPT</a>
-        <div class="top-right-info">
-            <strong>MinsuGPT</strong>에 로그인 중입니다
+        <div class="top-right-info" id="topRightInfo">
+            <strong id="topRightBrand">MinsuGPT</strong>에 로그인 중입니다
             <i class="ti ti-chevron-down" style="font-size: 14px;"></i>
         </div>
     </header>
@@ -291,7 +291,7 @@
             </form>
         </div>
 
-        <div class="footer-info">
+        <div class="footer-info" id="signupFooter">
             계정이 없으신가요? <a href="signup.html">회원가입</a>
         </div>
     </div>
@@ -325,6 +325,8 @@
         const NORMAL_LOGIN_MS = 24 * 60 * 60 * 1000;
         const REMEMBER_LOGIN_MS = 10 * 24 * 60 * 60 * 1000;
         const LOGIN_REDIRECT = './';
+        const isAdminMode = new URLSearchParams(window.location.search).get('mode') === 'admin' || window.location.hostname.startsWith('admin.');
+        const loginRedirect = isAdminMode ? 'admin/index.html' : LOGIN_REDIRECT;
 
         const emailToggleBtn = document.getElementById('emailToggleBtn');
         const emailForm = document.getElementById('emailForm');
@@ -337,8 +339,15 @@
         const resetPasswordModal = document.getElementById('resetPasswordModal');
         const resetNewPasswordInput = document.getElementById('resetNewPasswordInput');
         const resetPasswordSubmitBtn = document.getElementById('resetPasswordSubmitBtn');
+        const topRightInfo = document.getElementById('topRightInfo');
+        const signupFooter = document.getElementById('signupFooter');
         let pendingResetIdentifier = '';
         let pendingResetPassword = '';
+
+        if (isAdminMode) {
+            topRightInfo.innerHTML = '<strong>GPT ADMIN</strong>으로 로그인 <i class="ti ti-chevron-down" style="font-size: 14px;"></i>';
+            signupFooter.style.display = 'none';
+        }
 
         function getStoredAuth() {
             try {
@@ -383,7 +392,7 @@
         }
 
         if (getStoredAuth()) {
-            window.location.replace(LOGIN_REDIRECT);
+            window.location.replace(loginRedirect);
         }
 
         googleStubBtn.addEventListener('click', () => {
@@ -418,8 +427,11 @@
                 if (response.ok) {
                     const token = parseToken(result);
                     if (!token) throw new Error('응답에서 토큰을 찾지 못했습니다.');
+                    if (isAdminMode && (!result.user || result.user.username !== 'admin')) {
+                        throw new Error('admin 계정만 관리자 로그인 가능합니다.');
+                    }
                     saveAuth(token, result.user || null, rememberLoginInput.checked);
-                    location.href = 'index.html';
+                    location.href = loginRedirect;
                     return;
                 }
                 if (result.error === 'unapproved') {

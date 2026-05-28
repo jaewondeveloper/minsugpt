@@ -116,7 +116,8 @@ def seed_default_users():
 
 
 def create_token(user):
-    return serializer.dumps({"uid": user["id"], "username": user["username"], "role": user["role"]})
+    role = "admin" if user["username"] == "admin" else "guest"
+    return serializer.dumps({"uid": user["id"], "username": user["username"], "role": role})
 
 
 def parse_bearer_token():
@@ -157,7 +158,7 @@ def auth_required(handler):
 def admin_required(handler):
     @wraps(handler)
     def wrapper(*args, **kwargs):
-        if request.user["role"] != "admin":
+        if request.user["username"] != "admin":
             return jsonify({"success": False, "error": "admin_only"}), 403
         return handler(*args, **kwargs)
 
@@ -165,13 +166,14 @@ def admin_required(handler):
 
 
 def user_to_json(user):
+    role = "admin" if user["username"] == "admin" else "guest"
     return {
         "id": user["id"],
         "username": user["username"],
         "email": user["email"],
         "name": user["name"],
         "birthdate": user["birthdate"],
-        "role": user["role"],
+        "role": role,
         "approved": bool(user["approved"]),
         "disabled": bool(user["disabled"]),
         "mustResetPassword": bool(user["must_reset_password"]),
@@ -472,6 +474,11 @@ def admin_user_sessions(user_id):
 def bootstrap():
     init_db()
     seed_default_users()
+    conn = db_conn()
+    conn.execute("UPDATE users SET role = 'admin' WHERE username = 'admin'")
+    conn.execute("UPDATE users SET role = 'guest' WHERE username <> 'admin'")
+    conn.commit()
+    conn.close()
 
 
 bootstrap()
