@@ -24,6 +24,9 @@ Default URL: `http://127.0.0.1:5000`
 - `POST /api/auth/login`
 - `POST /api/auth/signup`
 - `GET /api/auth/verify` (Bearer token)
+- `GET /api/chat/sessions` (Bearer token)
+- `POST /api/chat/sessions` (Bearer token)
+- `DELETE /api/chat/sessions/<session_id>` (Bearer token)
 - `GET /api/health`
 
 ## Seeded Accounts

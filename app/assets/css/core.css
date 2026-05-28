@@ -746,6 +746,48 @@
       background: #fee2e2;
       color: #991b1b;
     }
+    .profile-menu {
+      position: fixed;
+      z-index: 13050;
+      min-width: 138px;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      box-shadow: 0 14px 30px rgba(15, 23, 42, 0.2);
+      padding: 6px;
+      display: none;
+      opacity: 0;
+      transform: translateY(6px) scale(0.96);
+      transform-origin: top left;
+      transition: opacity 0.16s ease, transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .profile-menu.show {
+      display: block;
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+    .profile-menu-btn {
+      width: 100%;
+      border-radius: 10px;
+      padding: 8px 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #374151;
+      text-align: left;
+      background: transparent;
+    }
+    .profile-menu-btn:hover {
+      background: #f3f4f6;
+    }
+    .profile-menu-btn.danger {
+      color: #b91c1c;
+    }
+    .profile-menu-btn.danger:hover {
+      background: #fee2e2;
+      color: #991b1b;
+    }
     .history-dialog-backdrop {
       position: fixed;
       inset: 0;

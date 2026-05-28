@@ -23,7 +23,8 @@ function iconNameMap(name) {
         'thumb-down': 'tabler:thumb-down',
         'refresh-cw': 'tabler:refresh',
         'chevron-left': 'tabler:chevron-left',
-        'chevron-right': 'tabler:chevron-right'
+        'chevron-right': 'tabler:chevron-right',
+        'logout-2': 'tabler:logout-2'
       };
       return map[name] || 'tabler:circle-filled';
     }
@@ -39,7 +40,8 @@ function iconNameMap(name) {
         settings: 'streamline-flex:cog-circle',
         ellipsis: 'heroicons:ellipsis-horizontal-20-solid',
         pin: 'streamline-flex:pin',
-        pencil: 'streamline-flex:pencil-circle'
+        pencil: 'streamline-flex:pencil-circle',
+        'logout-2': 'tabler:logout-2'
       };
       return map[name] || iconNameMap(name);
     }
@@ -64,6 +66,7 @@ function iconNameMap(name) {
     const AUTH_BASE = 'https://jaewondev6.pythonanywhere.com';
     const AUTH_LOGIN_PATH = '/api/auth/login';
     const AUTH_VERIFY_PATH = '/api/auth/verify';
+    const AUTH_CHAT_SESSIONS_PATH = '/api/chat/sessions';
     const AUTH_STORAGE_KEY = 'minsugpt_auth_v1';
     const AUTH_VERIFY_ON_LOAD = true;
     const STORAGE_KEY = 'minsugpt_chats_v1';
@@ -84,6 +87,11 @@ function iconNameMap(name) {
       localStorage.removeItem(AUTH_STORAGE_KEY);
     }
 
+    function setAuthSession(nextSession) {
+      if (!nextSession || !nextSession.token) return;
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextSession));
+    }
+
     function getAuthSession() {
       try {
         const raw = localStorage.getItem(AUTH_STORAGE_KEY);
@@ -102,6 +110,7 @@ function iconNameMap(name) {
         window.top.location.href = loginPageUrl();
         return null;
       }
+      authUser = session.user || null;
       if (!AUTH_VERIFY_ON_LOAD) return session;
       try {
         const res = await fetch(AUTH_BASE + AUTH_VERIFY_PATH, {
@@ -109,7 +118,11 @@ function iconNameMap(name) {
           headers: { Authorization: 'Bearer ' + session.token }
         });
         if (!res.ok) throw new Error('invalid');
-        return session;
+        const data = await res.json().catch(() => ({}));
+        const merged = Object.assign({}, session, { user: data.user || session.user || null });
+        setAuthSession(merged);
+        authUser = merged.user || null;
+        return merged;
       } catch {
         clearAuthSession();
         window.top.location.href = loginPageUrl();
@@ -121,6 +134,44 @@ function iconNameMap(name) {
       const session = getAuthSession();
       if (!session) return {};
       return { Authorization: 'Bearer ' + session.token };
+    }
+
+    async function authApiFetch(path, options) {
+      const opts = options || {};
+      const headers = Object.assign({}, opts.headers || {}, authHeaders());
+      const res = await fetch(AUTH_BASE + path, Object.assign({}, opts, { headers }));
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || data.message || ('요청 실패 (' + res.status + ')'));
+      return data;
+    }
+
+    async function fetchRemoteSessions() {
+      const data = await authApiFetch(AUTH_CHAT_SESSIONS_PATH, { method: 'GET' });
+      const sessions = (data.sessions || []).map((s) => ({
+        id: s.id,
+        title: s.title || '새 채팅',
+        messages: Array.isArray(s.messages) ? s.messages : [],
+        updatedAt: s.updatedAt || new Date().toISOString()
+      }));
+      sessionsStore.sessions = sessions.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+      return sessionsStore.sessions;
+    }
+
+    function syncSessionToServer(session) {
+      return authApiFetch(AUTH_CHAT_SESSIONS_PATH, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: session.id,
+          title: session.title || '새 채팅',
+          messages: session.messages || [],
+          updatedAt: session.updatedAt || new Date().toISOString()
+        })
+      });
+    }
+
+    function deleteSessionFromServer(id) {
+      return authApiFetch(AUTH_CHAT_SESSIONS_PATH + '/' + encodeURIComponent(id), { method: 'DELETE' });
     }
 
     function normalizeAssistantMessage(m) {
@@ -221,7 +272,11 @@ function iconNameMap(name) {
     const searchPreview = document.getElementById('chat-search-preview');
     const libraryBtn = document.getElementById('mobile-library-btn');
     const mobileSearchBtn = document.getElementById('mobile-search-btn');
-    const logoutBtn = document.getElementById('profile-logout-btn');
+    const profileMenu = document.getElementById('profile-menu');
+    const profileMenuTrigger = document.getElementById('profile-menu-trigger');
+    const profileMenuTriggerBtn = document.getElementById('profile-menu-trigger-btn');
+    const profileMenuSettingsBtn = document.getElementById('profile-menu-settings');
+    const profileMenuLogoutBtn = document.getElementById('profile-menu-logout');
     const profileNameEl = document.getElementById('profile-name');
     const profileAvatarEl = document.getElementById('profile-avatar');
     const historyActionMenu = document.getElementById('history-action-menu');
@@ -240,6 +295,8 @@ function iconNameMap(name) {
     let gradientFrozen = false;
     let gradientTickStart = performance.now();
     let gradientWaveTimer = null;
+    let authUser = null;
+    let sessionsStore = { sessions: [], currentId: null };
 
     if (typeof marked !== 'undefined') {
       marked.setOptions({ breaks: true, gfm: true });
@@ -250,24 +307,16 @@ function iconNameMap(name) {
     const uid = () => 'c_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
 
     function loadStore() {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return { sessions: [], currentId: null };
-        const data = JSON.parse(raw);
-        return { sessions: data.sessions || [], currentId: data.currentId || null };
-      } catch {
-        return { sessions: [], currentId: null };
-      }
+      return sessionsStore;
     }
 
     function saveStore() {
-      const store = loadStore();
-      store.currentId = currentSessionId;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+      sessionsStore.currentId = currentSessionId;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ currentId: currentSessionId }));
     }
 
     function getSession(id) {
-      return loadStore().sessions.find((s) => s.id === id) || null;
+      return sessionsStore.sessions.find((s) => s.id === id) || null;
     }
 
     function closeHistoryActionMenu() {
@@ -307,14 +356,14 @@ function iconNameMap(name) {
     }
 
     function removeSessionById(id) {
-      const store = loadStore();
-      store.sessions = (store.sessions || []).filter((s) => s.id !== id);
-      if (store.currentId === id) store.currentId = store.sessions[0]?.id || null;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
-      if (!store.currentId) {
+      sessionsStore.sessions = sessionsStore.sessions.filter((s) => s.id !== id);
+      if (sessionsStore.currentId === id) sessionsStore.currentId = sessionsStore.sessions[0]?.id || null;
+      saveStore();
+      deleteSessionFromServer(id).catch((err) => console.error('[MinsuGPT][deleteSession]', err));
+      if (!sessionsStore.currentId) {
         startNewChat();
       } else if (currentSessionId === id) {
-        loadSession(store.currentId);
+        loadSession(sessionsStore.currentId);
       } else {
         renderSidebar();
       }
@@ -330,6 +379,7 @@ function iconNameMap(name) {
         updatedAt: new Date().toISOString()
       };
       upsertSession(copy);
+      syncSessionToServer(copy).catch((err) => console.error('[MinsuGPT][duplicateSession]', err));
       loadSession(copy.id);
     }
 
@@ -349,6 +399,7 @@ function iconNameMap(name) {
       target.title = value.length > 40 ? value.slice(0, 40) + '…' : value;
       target.updatedAt = new Date().toISOString();
       upsertSession(target);
+      syncSessionToServer(target).catch((err) => console.error('[MinsuGPT][renameSession]', err));
       renderSidebar();
     }
 
@@ -366,13 +417,12 @@ function iconNameMap(name) {
     }
 
     function upsertSession(session) {
-      const store = loadStore();
-      const idx = store.sessions.findIndex((s) => s.id === session.id);
-      if (idx >= 0) store.sessions[idx] = session;
-      else store.sessions.unshift(session);
-      store.sessions.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-      store.currentId = session.id;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+      const idx = sessionsStore.sessions.findIndex((s) => s.id === session.id);
+      if (idx >= 0) sessionsStore.sessions[idx] = session;
+      else sessionsStore.sessions.unshift(session);
+      sessionsStore.sessions.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+      sessionsStore.currentId = session.id;
+      saveStore();
     }
 
     function sessionTitle(text) {
@@ -613,7 +663,9 @@ function iconNameMap(name) {
 
     function syncProfileAvatarFromName() {
       if (!profileNameEl || !profileAvatarEl) return;
-      const name = (profileNameEl.textContent || '').trim();
+      const displayName = (authUser && (authUser.name || authUser.username)) || '게스트';
+      profileNameEl.textContent = displayName;
+      const name = displayName.trim();
       const first = name ? Array.from(name)[0] : 'G';
       profileAvatarEl.textContent = first;
     }

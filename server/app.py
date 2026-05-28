@@ -1,3 +1,4 @@
+import json
 import os
 import sqlite3
 from datetime import datetime
@@ -44,6 +45,10 @@ CORS(app, resources={r"/api/*": {"origins": cors_origins}})
 serializer = URLSafeTimedSerializer(SECRET_KEY, salt="minsugpt-auth-token")
 
 
+def now_iso():
+    return datetime.utcnow().isoformat()
+
+
 def db_conn():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -64,6 +69,19 @@ def init_db():
             role TEXT NOT NULL DEFAULT 'guest',
             approved INTEGER NOT NULL DEFAULT 0,
             created_at TEXT NOT NULL
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS chat_sessions (
+            id TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            messages_json TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )
         """
     )
@@ -90,7 +108,7 @@ def seed_default_users():
                 u["birthdate"],
                 u["role"],
                 u["approved"],
-                datetime.utcnow().isoformat(),
+                now_iso(),
             ),
         )
     conn.commit()
@@ -145,6 +163,14 @@ def user_to_json(user):
     }
 
 
+def row_to_session(row):
+    try:
+        messages = json.loads(row["messages_json"] or "[]")
+    except json.JSONDecodeError:
+        messages = []
+    return {"id": row["id"], "title": row["title"], "messages": messages, "updatedAt": row["updated_at"]}
+
+
 @app.get("/api/health")
 def health():
     return jsonify({"success": True, "service": "minsugpt-auth"})
@@ -175,7 +201,7 @@ def signup():
         INSERT INTO users (username, email, password_hash, name, birthdate, role, approved, created_at)
         VALUES (?, ?, ?, ?, ?, 'guest', 0, ?)
         """,
-        (username, email, generate_password_hash(password), name, birthdate, datetime.utcnow().isoformat()),
+        (username, email, generate_password_hash(password), name, birthdate, now_iso()),
     )
     conn.commit()
     conn.close()
@@ -211,6 +237,66 @@ def login():
 @auth_required
 def verify():
     return jsonify({"success": True, "user": user_to_json(request.user)})
+
+
+@app.get("/api/chat/sessions")
+@auth_required
+def list_sessions():
+    conn = db_conn()
+    rows = conn.execute(
+        "SELECT id, title, messages_json, updated_at FROM chat_sessions WHERE user_id = ? ORDER BY datetime(updated_at) DESC",
+        (request.user["id"],),
+    ).fetchall()
+    conn.close()
+    return jsonify({"success": True, "sessions": [row_to_session(r) for r in rows]})
+
+
+@app.post("/api/chat/sessions")
+@auth_required
+def upsert_session():
+    data = request.get_json(silent=True) or {}
+    sid = (data.get("id") or "").strip()
+    title = (data.get("title") or "새 채팅").strip() or "새 채팅"
+    messages = data.get("messages")
+    updated_at = (data.get("updatedAt") or now_iso()).strip()
+
+    if not sid:
+        return jsonify({"success": False, "error": "session id가 필요합니다."}), 400
+    if not isinstance(messages, list):
+        return jsonify({"success": False, "error": "messages는 배열이어야 합니다."}), 400
+
+    conn = db_conn()
+    exists = conn.execute("SELECT id FROM chat_sessions WHERE id = ? AND user_id = ?", (sid, request.user["id"])).fetchone()
+    if exists:
+        conn.execute(
+            "UPDATE chat_sessions SET title = ?, messages_json = ?, updated_at = ? WHERE id = ? AND user_id = ?",
+            (title, json.dumps(messages, ensure_ascii=False), updated_at, sid, request.user["id"]),
+        )
+    else:
+        conn.execute(
+            """
+            INSERT INTO chat_sessions (id, user_id, title, messages_json, updated_at, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (sid, request.user["id"], title, json.dumps(messages, ensure_ascii=False), updated_at, now_iso()),
+        )
+    conn.commit()
+    row = conn.execute(
+        "SELECT id, title, messages_json, updated_at FROM chat_sessions WHERE id = ? AND user_id = ?",
+        (sid, request.user["id"]),
+    ).fetchone()
+    conn.close()
+    return jsonify({"success": True, "session": row_to_session(row)})
+
+
+@app.delete("/api/chat/sessions/<session_id>")
+@auth_required
+def delete_session(session_id):
+    conn = db_conn()
+    conn.execute("DELETE FROM chat_sessions WHERE id = ? AND user_id = ?", (session_id, request.user["id"]))
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True, "deleted": session_id})
 
 
 def bootstrap():

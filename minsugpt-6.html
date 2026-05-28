@@ -757,6 +757,48 @@
       background: #fee2e2;
       color: #991b1b;
     }
+    .profile-menu {
+      position: fixed;
+      z-index: 13050;
+      min-width: 138px;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      box-shadow: 0 14px 30px rgba(15, 23, 42, 0.2);
+      padding: 6px;
+      display: none;
+      opacity: 0;
+      transform: translateY(6px) scale(0.96);
+      transform-origin: top left;
+      transition: opacity 0.16s ease, transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .profile-menu.show {
+      display: block;
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+    .profile-menu-btn {
+      width: 100%;
+      border-radius: 10px;
+      padding: 8px 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #374151;
+      text-align: left;
+      background: transparent;
+    }
+    .profile-menu-btn:hover {
+      background: #f3f4f6;
+    }
+    .profile-menu-btn.danger {
+      color: #b91c1c;
+    }
+    .profile-menu-btn.danger:hover {
+      background: #fee2e2;
+      color: #991b1b;
+    }
     .history-dialog-backdrop {
       position: fixed;
       inset: 0;
@@ -1221,7 +1263,7 @@
     </div>
 
     <div class="pt-2 pb-0.5 border-t border-gray-200/60 flex items-center justify-between px-1 profile-container">
-      <div class="flex items-center justify-center overflow-hidden w-full">
+      <div id="profile-menu-trigger" class="flex items-center justify-center overflow-hidden w-full cursor-pointer">
         <div id="profile-avatar" class="w-6.5 h-6.5 min-w-[26px] min-h-[26px] aspect-square rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-[11px] shrink-0 object-cover">
           게
         </div>
@@ -1230,7 +1272,7 @@
           <p class="text-[10px] text-gray-400">MinsuGPT</p>
         </div>
       </div>
-      <button id="profile-logout-btn" class="ripple-btn text-gray-400 hover:bg-gray-200/50 p-1 rounded-lg shrink-0 hide-on-mini" title="로그아웃">
+      <button id="profile-menu-trigger-btn" class="ripple-btn text-gray-400 hover:bg-gray-200/50 p-1 rounded-lg shrink-0 hide-on-mini" title="프로필 메뉴">
         <i data-lucide="settings" class="w-3.5 h-3.5"></i>
       </button>
     </div>
@@ -1321,6 +1363,14 @@
       <i data-lucide="trash-2" class="w-3.5 h-3.5"></i><span>삭제</span>
     </button>
   </div>
+  <div id="profile-menu" class="profile-menu">
+    <button id="profile-menu-settings" class="profile-menu-btn ripple-btn" type="button">
+      <i data-lucide="settings" class="w-3.5 h-3.5"></i><span>설정</span>
+    </button>
+    <button id="profile-menu-logout" class="profile-menu-btn danger ripple-btn" type="button">
+      <i data-lucide="logout-2" class="w-3.5 h-3.5"></i><span>로그아웃</span>
+    </button>
+  </div>
   <div id="history-dialog" class="history-dialog-backdrop">
     <div class="history-dialog">
       <h3 id="history-dialog-title" class="text-[15px] font-medium text-gray-800 mb-2">제목 편집</h3>
@@ -1356,7 +1406,8 @@
         'thumb-down': 'tabler:thumb-down',
         'refresh-cw': 'tabler:refresh',
         'chevron-left': 'tabler:chevron-left',
-        'chevron-right': 'tabler:chevron-right'
+        'chevron-right': 'tabler:chevron-right',
+        'logout-2': 'tabler:logout-2'
       };
       return map[name] || 'tabler:circle-filled';
     }
@@ -1372,7 +1423,8 @@
         settings: 'streamline-flex:cog-circle',
         ellipsis: 'heroicons:ellipsis-horizontal-20-solid',
         pin: 'streamline-flex:pin',
-        pencil: 'streamline-flex:pencil-circle'
+        pencil: 'streamline-flex:pencil-circle',
+        'logout-2': 'tabler:logout-2'
       };
       return map[name] || iconNameMap(name);
     }
@@ -1397,6 +1449,7 @@
     const AUTH_BASE = 'https://jaewondev6.pythonanywhere.com';
     const AUTH_LOGIN_PATH = '/api/auth/login';
     const AUTH_VERIFY_PATH = '/api/auth/verify';
+    const AUTH_CHAT_SESSIONS_PATH = '/api/chat/sessions';
     const AUTH_STORAGE_KEY = 'minsugpt_auth_v1';
     const AUTH_VERIFY_ON_LOAD = true;
     const STORAGE_KEY = 'minsugpt_chats_v1';
@@ -1417,6 +1470,11 @@
       localStorage.removeItem(AUTH_STORAGE_KEY);
     }
 
+    function setAuthSession(nextSession) {
+      if (!nextSession || !nextSession.token) return;
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextSession));
+    }
+
     function getAuthSession() {
       try {
         const raw = localStorage.getItem(AUTH_STORAGE_KEY);
@@ -1435,6 +1493,7 @@
         window.top.location.href = loginPageUrl();
         return null;
       }
+      authUser = session.user || null;
       if (!AUTH_VERIFY_ON_LOAD) return session;
       try {
         const res = await fetch(AUTH_BASE + AUTH_VERIFY_PATH, {
@@ -1442,7 +1501,11 @@
           headers: { Authorization: 'Bearer ' + session.token }
         });
         if (!res.ok) throw new Error('invalid');
-        return session;
+        const data = await res.json().catch(() => ({}));
+        const merged = Object.assign({}, session, { user: data.user || session.user || null });
+        setAuthSession(merged);
+        authUser = merged.user || null;
+        return merged;
       } catch {
         clearAuthSession();
         window.top.location.href = loginPageUrl();
@@ -1454,6 +1517,44 @@
       const session = getAuthSession();
       if (!session) return {};
       return { Authorization: 'Bearer ' + session.token };
+    }
+
+    async function authApiFetch(path, options) {
+      const opts = options || {};
+      const headers = Object.assign({}, opts.headers || {}, authHeaders());
+      const res = await fetch(AUTH_BASE + path, Object.assign({}, opts, { headers }));
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || data.message || ('요청 실패 (' + res.status + ')'));
+      return data;
+    }
+
+    async function fetchRemoteSessions() {
+      const data = await authApiFetch(AUTH_CHAT_SESSIONS_PATH, { method: 'GET' });
+      const sessions = (data.sessions || []).map((s) => ({
+        id: s.id,
+        title: s.title || '새 채팅',
+        messages: Array.isArray(s.messages) ? s.messages : [],
+        updatedAt: s.updatedAt || new Date().toISOString()
+      }));
+      sessionsStore.sessions = sessions.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+      return sessionsStore.sessions;
+    }
+
+    function syncSessionToServer(session) {
+      return authApiFetch(AUTH_CHAT_SESSIONS_PATH, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: session.id,
+          title: session.title || '새 채팅',
+          messages: session.messages || [],
+          updatedAt: session.updatedAt || new Date().toISOString()
+        })
+      });
+    }
+
+    function deleteSessionFromServer(id) {
+      return authApiFetch(AUTH_CHAT_SESSIONS_PATH + '/' + encodeURIComponent(id), { method: 'DELETE' });
     }
 
     function normalizeAssistantMessage(m) {
@@ -1554,7 +1655,11 @@
     const searchPreview = document.getElementById('chat-search-preview');
     const libraryBtn = document.getElementById('mobile-library-btn');
     const mobileSearchBtn = document.getElementById('mobile-search-btn');
-    const logoutBtn = document.getElementById('profile-logout-btn');
+    const profileMenu = document.getElementById('profile-menu');
+    const profileMenuTrigger = document.getElementById('profile-menu-trigger');
+    const profileMenuTriggerBtn = document.getElementById('profile-menu-trigger-btn');
+    const profileMenuSettingsBtn = document.getElementById('profile-menu-settings');
+    const profileMenuLogoutBtn = document.getElementById('profile-menu-logout');
     const profileNameEl = document.getElementById('profile-name');
     const profileAvatarEl = document.getElementById('profile-avatar');
     const historyActionMenu = document.getElementById('history-action-menu');
@@ -1573,6 +1678,8 @@
     let gradientFrozen = false;
     let gradientTickStart = performance.now();
     let gradientWaveTimer = null;
+    let authUser = null;
+    let sessionsStore = { sessions: [], currentId: null };
 
     if (typeof marked !== 'undefined') {
       marked.setOptions({ breaks: true, gfm: true });
@@ -1583,24 +1690,16 @@
     const uid = () => 'c_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
 
     function loadStore() {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return { sessions: [], currentId: null };
-        const data = JSON.parse(raw);
-        return { sessions: data.sessions || [], currentId: data.currentId || null };
-      } catch {
-        return { sessions: [], currentId: null };
-      }
+      return sessionsStore;
     }
 
     function saveStore() {
-      const store = loadStore();
-      store.currentId = currentSessionId;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+      sessionsStore.currentId = currentSessionId;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ currentId: currentSessionId }));
     }
 
     function getSession(id) {
-      return loadStore().sessions.find((s) => s.id === id) || null;
+      return sessionsStore.sessions.find((s) => s.id === id) || null;
     }
 
     function closeHistoryActionMenu() {
@@ -1640,14 +1739,14 @@
     }
 
     function removeSessionById(id) {
-      const store = loadStore();
-      store.sessions = (store.sessions || []).filter((s) => s.id !== id);
-      if (store.currentId === id) store.currentId = store.sessions[0]?.id || null;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
-      if (!store.currentId) {
+      sessionsStore.sessions = sessionsStore.sessions.filter((s) => s.id !== id);
+      if (sessionsStore.currentId === id) sessionsStore.currentId = sessionsStore.sessions[0]?.id || null;
+      saveStore();
+      deleteSessionFromServer(id).catch((err) => console.error('[MinsuGPT][deleteSession]', err));
+      if (!sessionsStore.currentId) {
         startNewChat();
       } else if (currentSessionId === id) {
-        loadSession(store.currentId);
+        loadSession(sessionsStore.currentId);
       } else {
         renderSidebar();
       }
@@ -1663,6 +1762,7 @@
         updatedAt: new Date().toISOString()
       };
       upsertSession(copy);
+      syncSessionToServer(copy).catch((err) => console.error('[MinsuGPT][duplicateSession]', err));
       loadSession(copy.id);
     }
 
@@ -1682,6 +1782,7 @@
       target.title = value.length > 40 ? value.slice(0, 40) + '…' : value;
       target.updatedAt = new Date().toISOString();
       upsertSession(target);
+      syncSessionToServer(target).catch((err) => console.error('[MinsuGPT][renameSession]', err));
       renderSidebar();
     }
 
@@ -1699,13 +1800,12 @@
     }
 
     function upsertSession(session) {
-      const store = loadStore();
-      const idx = store.sessions.findIndex((s) => s.id === session.id);
-      if (idx >= 0) store.sessions[idx] = session;
-      else store.sessions.unshift(session);
-      store.sessions.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-      store.currentId = session.id;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+      const idx = sessionsStore.sessions.findIndex((s) => s.id === session.id);
+      if (idx >= 0) sessionsStore.sessions[idx] = session;
+      else sessionsStore.sessions.unshift(session);
+      sessionsStore.sessions.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+      sessionsStore.currentId = session.id;
+      saveStore();
     }
 
     function sessionTitle(text) {
@@ -1946,7 +2046,9 @@
 
     function syncProfileAvatarFromName() {
       if (!profileNameEl || !profileAvatarEl) return;
-      const name = (profileNameEl.textContent || '').trim();
+      const displayName = (authUser && (authUser.name || authUser.username)) || '게스트';
+      profileNameEl.textContent = displayName;
+      const name = displayName.trim();
       const first = name ? Array.from(name)[0] : 'G';
       profileAvatarEl.textContent = first;
     }
@@ -2931,6 +3033,7 @@
       existing.updatedAt = new Date().toISOString();
       upsertSession(existing);
       renderSidebar();
+      syncSessionToServer(existing).catch((err) => console.error('[MinsuGPT][persistSession]', err));
     }
 
     function ensureSession(firstUserText) {
@@ -2944,6 +3047,7 @@
       currentSessionId = session.id;
       upsertSession(session);
       renderSidebar();
+      syncSessionToServer(session).catch((err) => console.error('[MinsuGPT][createSession]', err));
     }
 
     function clearChatView() {
@@ -3016,6 +3120,7 @@
       if (session && session.title === '새 채팅') {
         session.title = sessionTitle(text);
         upsertSession(session);
+        syncSessionToServer(session).catch((err) => console.error('[MinsuGPT][titleSync]', err));
         renderSidebar();
       }
 
@@ -3056,6 +3161,7 @@
 
         chatHistory.push({ role: 'user', content: text });
         userWrap._historyIndex = chatHistory.length - 1;
+        persistCurrentSession();
 
         const assistantResult = appendMessage('assistant', '', {
           sourceUserText: text,
@@ -3105,22 +3211,87 @@
       setTimeout(hideError, 1500);
       if (isMobile()) closeMobileSidebar();
     });
-    if (logoutBtn) {
-      logoutBtn.addEventListener('click', () => {
-        clearAuthSession();
-        window.top.location.href = loginPageUrl();
+
+    function closeProfileMenu() {
+      if (!profileMenu) return;
+      profileMenu.classList.remove('show');
+    }
+
+    function openProfileMenu(anchorEl) {
+      if (!profileMenu || !anchorEl) return;
+      const rect = anchorEl.getBoundingClientRect();
+      const menuRect = profileMenu.getBoundingClientRect();
+      const top = Math.max(12, rect.top - (menuRect.height || 98) - 8);
+      let left = rect.left;
+      if (left > window.innerWidth - 170) left = window.innerWidth - 170;
+      profileMenu.style.top = top + 'px';
+      profileMenu.style.left = Math.max(8, left) + 'px';
+      profileMenu.classList.add('show');
+      renderRoundedIcons(profileMenu);
+    }
+
+    function triggerLogout() {
+      clearAuthSession();
+      window.top.location.href = loginPageUrl();
+    }
+
+    if (profileMenuTrigger) {
+      profileMenuTrigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (profileMenu.classList.contains('show')) closeProfileMenu();
+        else openProfileMenu(profileMenuTrigger);
       });
     }
+    if (profileMenuTriggerBtn) {
+      profileMenuTriggerBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (profileMenu.classList.contains('show')) closeProfileMenu();
+        else openProfileMenu(profileMenuTriggerBtn);
+      });
+    }
+    if (profileMenuSettingsBtn) {
+      profileMenuSettingsBtn.addEventListener('click', () => {
+        closeProfileMenu();
+        showError('설정은 준비 중입니다.');
+        setTimeout(hideError, 1400);
+      });
+    }
+    if (profileMenuLogoutBtn) {
+      profileMenuLogoutBtn.addEventListener('click', () => {
+        closeProfileMenu();
+        triggerLogout();
+      });
+    }
+    document.addEventListener('click', (e) => {
+      if (!profileMenu || !profileMenu.classList.contains('show')) return;
+      if (e.target.closest('#profile-menu') || e.target.closest('#profile-menu-trigger') || e.target.closest('#profile-menu-trigger-btn')) return;
+      closeProfileMenu();
+    });
 
     (async function init() {
       const auth = await ensureAuthOrRedirect();
       if (!auth) return;
+      const localStore = (() => {
+        try {
+          return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+        } catch {
+          return {};
+        }
+      })();
+      try {
+        await fetchRemoteSessions();
+      } catch (err) {
+        console.error('[MinsuGPT][loadSessions]', err);
+        showError('채팅 기록을 불러오지 못했습니다.');
+      }
+      const preferredId = localStore.currentId || null;
+      sessionsStore.currentId = preferredId && getSession(preferredId) ? preferredId : (sessionsStore.sessions[0]?.id || null);
+      currentSessionId = sessionsStore.currentId;
       renderSidebar();
       syncProfileAvatarFromName();
       startGradientAnimation();
-      const store = loadStore();
-      if (store.currentId && getSession(store.currentId)) {
-        loadSession(store.currentId);
+      if (currentSessionId && getSession(currentSessionId)) {
+        loadSession(currentSessionId);
         freezeGradientNow();
       }
     })();

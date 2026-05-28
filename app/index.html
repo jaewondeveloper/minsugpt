@@ -71,7 +71,7 @@
     </div>
 
     <div class="pt-2 pb-0.5 border-t border-gray-200/60 flex items-center justify-between px-1 profile-container">
-      <div class="flex items-center justify-center overflow-hidden w-full">
+      <div id="profile-menu-trigger" class="flex items-center justify-center overflow-hidden w-full cursor-pointer">
         <div id="profile-avatar" class="w-6.5 h-6.5 min-w-[26px] min-h-[26px] aspect-square rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-[11px] shrink-0 object-cover">
           게
         </div>
@@ -80,7 +80,7 @@
           <p class="text-[10px] text-gray-400">MinsuGPT</p>
         </div>
       </div>
-      <button id="profile-logout-btn" class="ripple-btn text-gray-400 hover:bg-gray-200/50 p-1 rounded-lg shrink-0 hide-on-mini" title="로그아웃">
+      <button id="profile-menu-trigger-btn" class="ripple-btn text-gray-400 hover:bg-gray-200/50 p-1 rounded-lg shrink-0 hide-on-mini" title="프로필 메뉴">
         <i data-lucide="settings" class="w-3.5 h-3.5"></i>
       </button>
     </div>
@@ -168,6 +168,14 @@
     </button>
     <button id="history-action-delete" class="history-action-btn ripple-btn danger" type="button">
       <i data-lucide="trash-2" class="w-3.5 h-3.5"></i><span>삭제</span>
+    </button>
+  </div>
+  <div id="profile-menu" class="profile-menu">
+    <button id="profile-menu-settings" class="profile-menu-btn ripple-btn" type="button">
+      <i data-lucide="settings" class="w-3.5 h-3.5"></i><span>설정</span>
+    </button>
+    <button id="profile-menu-logout" class="profile-menu-btn danger ripple-btn" type="button">
+      <i data-lucide="logout-2" class="w-3.5 h-3.5"></i><span>로그아웃</span>
     </button>
   </div>
   <div id="history-dialog" class="history-dialog-backdrop">

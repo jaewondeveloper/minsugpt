@@ -108,6 +108,7 @@ async function streamAssistantReply(bubble, fullText) {
       existing.updatedAt = new Date().toISOString();
       upsertSession(existing);
       renderSidebar();
+      syncSessionToServer(existing).catch((err) => console.error('[MinsuGPT][persistSession]', err));
     }
 
     function ensureSession(firstUserText) {
@@ -121,6 +122,7 @@ async function streamAssistantReply(bubble, fullText) {
       currentSessionId = session.id;
       upsertSession(session);
       renderSidebar();
+      syncSessionToServer(session).catch((err) => console.error('[MinsuGPT][createSession]', err));
     }
 
     function clearChatView() {
@@ -193,6 +195,7 @@ async function streamAssistantReply(bubble, fullText) {
       if (session && session.title === '새 채팅') {
         session.title = sessionTitle(text);
         upsertSession(session);
+        syncSessionToServer(session).catch((err) => console.error('[MinsuGPT][titleSync]', err));
         renderSidebar();
       }
 
@@ -233,6 +236,7 @@ async function streamAssistantReply(bubble, fullText) {
 
         chatHistory.push({ role: 'user', content: text });
         userWrap._historyIndex = chatHistory.length - 1;
+        persistCurrentSession();
 
         const assistantResult = appendMessage('assistant', '', {
           sourceUserText: text,
@@ -282,22 +286,87 @@ async function streamAssistantReply(bubble, fullText) {
       setTimeout(hideError, 1500);
       if (isMobile()) closeMobileSidebar();
     });
-    if (logoutBtn) {
-      logoutBtn.addEventListener('click', () => {
-        clearAuthSession();
-        window.top.location.href = loginPageUrl();
+
+    function closeProfileMenu() {
+      if (!profileMenu) return;
+      profileMenu.classList.remove('show');
+    }
+
+    function openProfileMenu(anchorEl) {
+      if (!profileMenu || !anchorEl) return;
+      const rect = anchorEl.getBoundingClientRect();
+      const menuRect = profileMenu.getBoundingClientRect();
+      const top = Math.max(12, rect.top - (menuRect.height || 98) - 8);
+      let left = rect.left;
+      if (left > window.innerWidth - 170) left = window.innerWidth - 170;
+      profileMenu.style.top = top + 'px';
+      profileMenu.style.left = Math.max(8, left) + 'px';
+      profileMenu.classList.add('show');
+      renderRoundedIcons(profileMenu);
+    }
+
+    function triggerLogout() {
+      clearAuthSession();
+      window.top.location.href = loginPageUrl();
+    }
+
+    if (profileMenuTrigger) {
+      profileMenuTrigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (profileMenu.classList.contains('show')) closeProfileMenu();
+        else openProfileMenu(profileMenuTrigger);
       });
     }
+    if (profileMenuTriggerBtn) {
+      profileMenuTriggerBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (profileMenu.classList.contains('show')) closeProfileMenu();
+        else openProfileMenu(profileMenuTriggerBtn);
+      });
+    }
+    if (profileMenuSettingsBtn) {
+      profileMenuSettingsBtn.addEventListener('click', () => {
+        closeProfileMenu();
+        showError('설정은 준비 중입니다.');
+        setTimeout(hideError, 1400);
+      });
+    }
+    if (profileMenuLogoutBtn) {
+      profileMenuLogoutBtn.addEventListener('click', () => {
+        closeProfileMenu();
+        triggerLogout();
+      });
+    }
+    document.addEventListener('click', (e) => {
+      if (!profileMenu || !profileMenu.classList.contains('show')) return;
+      if (e.target.closest('#profile-menu') || e.target.closest('#profile-menu-trigger') || e.target.closest('#profile-menu-trigger-btn')) return;
+      closeProfileMenu();
+    });
 
     (async function init() {
       const auth = await ensureAuthOrRedirect();
       if (!auth) return;
+      const localStore = (() => {
+        try {
+          return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+        } catch {
+          return {};
+        }
+      })();
+      try {
+        await fetchRemoteSessions();
+      } catch (err) {
+        console.error('[MinsuGPT][loadSessions]', err);
+        showError('채팅 기록을 불러오지 못했습니다.');
+      }
+      const preferredId = localStore.currentId || null;
+      sessionsStore.currentId = preferredId && getSession(preferredId) ? preferredId : (sessionsStore.sessions[0]?.id || null);
+      currentSessionId = sessionsStore.currentId;
       renderSidebar();
       syncProfileAvatarFromName();
       startGradientAnimation();
-      const store = loadStore();
-      if (store.currentId && getSession(store.currentId)) {
-        loadSession(store.currentId);
+      if (currentSessionId && getSession(currentSessionId)) {
+        loadSession(currentSessionId);
         freezeGradientNow();
       }
     })();
