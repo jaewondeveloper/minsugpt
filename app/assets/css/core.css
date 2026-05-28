@@ -657,6 +657,7 @@
       background-color: #e0e0e0 !important;
     }
     .new-chat-shortcut, .search-shortcut {
+      display: none;
       margin-left: auto;
       font-size: 11px;
       color: #6b7280;
@@ -667,6 +668,9 @@
       white-space: nowrap;
     }
     @media (min-width: 768px) {
+      .new-chat-shortcut, .search-shortcut {
+        display: inline;
+      }
       #new-chat-btn:hover .new-chat-shortcut,
       #new-chat-btn:focus-visible .new-chat-shortcut,
       #mobile-search-btn:hover .search-shortcut,
@@ -843,6 +847,16 @@
       padding-right: 2px;
       -ms-overflow-style: none;
       scrollbar-width: none;
+    }
+    .history-loading-wrap {
+      min-height: 110px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .history-loading-wrap .typing-dots {
+      width: 34px;
+      height: 14px;
     }
     #history-scroll::-webkit-scrollbar {
       display: none;

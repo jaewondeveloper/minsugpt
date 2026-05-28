@@ -294,11 +294,16 @@ async function streamAssistantReply(bubble, fullText) {
 
     function openProfileMenu(anchorEl) {
       if (!profileMenu || !anchorEl) return;
+      profileMenu.style.visibility = 'hidden';
+      profileMenu.style.display = 'block';
       const rect = anchorEl.getBoundingClientRect();
       const menuRect = profileMenu.getBoundingClientRect();
-      const top = Math.max(12, rect.top - (menuRect.height || 98) - 8);
-      let left = rect.left;
-      if (left > window.innerWidth - 170) left = window.innerWidth - 170;
+      profileMenu.style.display = '';
+      profileMenu.style.visibility = '';
+
+      const top = Math.min(window.innerHeight - (menuRect.height || 98) - 10, rect.bottom + 6);
+      let left = rect.right - (menuRect.width || 138);
+      if (left > window.innerWidth - (menuRect.width || 138) - 8) left = window.innerWidth - (menuRect.width || 138) - 8;
       profileMenu.style.top = top + 'px';
       profileMenu.style.left = Math.max(8, left) + 'px';
       profileMenu.classList.add('show');
@@ -313,6 +318,7 @@ async function streamAssistantReply(bubble, fullText) {
     if (profileMenuTrigger) {
       profileMenuTrigger.addEventListener('click', (e) => {
         e.stopPropagation();
+        if (!profileMenu) return;
         if (profileMenu.classList.contains('show')) closeProfileMenu();
         else openProfileMenu(profileMenuTrigger);
       });
@@ -320,6 +326,7 @@ async function streamAssistantReply(bubble, fullText) {
     if (profileMenuTriggerBtn) {
       profileMenuTriggerBtn.addEventListener('click', (e) => {
         e.stopPropagation();
+        if (!profileMenu) return;
         if (profileMenu.classList.contains('show')) closeProfileMenu();
         else openProfileMenu(profileMenuTriggerBtn);
       });
@@ -346,29 +353,23 @@ async function streamAssistantReply(bubble, fullText) {
     (async function init() {
       const auth = await ensureAuthOrRedirect();
       if (!auth) return;
-      const localStore = (() => {
-        try {
-          return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-        } catch {
-          return {};
-        }
-      })();
+      isLoadingSessions = true;
+      renderSidebar();
       try {
         await fetchRemoteSessions();
       } catch (err) {
         console.error('[MinsuGPT][loadSessions]', err);
         showError('채팅 기록을 불러오지 못했습니다.');
+      } finally {
+        isLoadingSessions = false;
       }
-      const preferredId = localStore.currentId || null;
-      sessionsStore.currentId = preferredId && getSession(preferredId) ? preferredId : (sessionsStore.sessions[0]?.id || null);
-      currentSessionId = sessionsStore.currentId;
+      sessionsStore.currentId = null;
+      currentSessionId = null;
+      saveStore();
       renderSidebar();
       syncProfileAvatarFromName();
       startGradientAnimation();
-      if (currentSessionId && getSession(currentSessionId)) {
-        loadSession(currentSessionId);
-        freezeGradientNow();
-      }
+      showWelcomeLayout();
     })();
 
     const sidebarBackdrop = document.getElementById('sidebar-backdrop');

@@ -668,6 +668,7 @@
       background-color: #e0e0e0 !important;
     }
     .new-chat-shortcut, .search-shortcut {
+      display: none;
       margin-left: auto;
       font-size: 11px;
       color: #6b7280;
@@ -678,6 +679,9 @@
       white-space: nowrap;
     }
     @media (min-width: 768px) {
+      .new-chat-shortcut, .search-shortcut {
+        display: inline;
+      }
       #new-chat-btn:hover .new-chat-shortcut,
       #new-chat-btn:focus-visible .new-chat-shortcut,
       #mobile-search-btn:hover .search-shortcut,
@@ -854,6 +858,16 @@
       padding-right: 2px;
       -ms-overflow-style: none;
       scrollbar-width: none;
+    }
+    .history-loading-wrap {
+      min-height: 110px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .history-loading-wrap .typing-dots {
+      width: 34px;
+      height: 14px;
     }
     #history-scroll::-webkit-scrollbar {
       display: none;
@@ -1443,6 +1457,28 @@
       });
     }
 
+    function parseAuthSessionRaw() {
+      try {
+        const raw = localStorage.getItem('minsugpt_auth_v1');
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || !parsed.token) return null;
+        const issuedAtMs = Date.parse(parsed.issuedAt || '');
+        const expiresAtMs = Date.parse(parsed.expiresAt || '');
+        const fallbackExpires = issuedAtMs && !Number.isNaN(issuedAtMs) ? (issuedAtMs + 24 * 60 * 60 * 1000) : 0;
+        const effectiveExpires = !Number.isNaN(expiresAtMs) && expiresAtMs ? expiresAtMs : fallbackExpires;
+        if (!effectiveExpires || Date.now() > effectiveExpires) return null;
+        return parsed;
+      } catch {
+        return null;
+      }
+    }
+
+    if (!parseAuthSessionRaw()) {
+      window.top.location.href = window.location.origin + window.location.pathname.replace(/\/app\/index\.html$/, '/login.html');
+      throw new Error('MinsuGPT auth required');
+    }
+
     renderRoundedIcons(document);
 
     const API_BASE = 'https://sigan.onrender.com';
@@ -1452,6 +1488,7 @@
     const AUTH_CHAT_SESSIONS_PATH = '/api/chat/sessions';
     const AUTH_STORAGE_KEY = 'minsugpt_auth_v1';
     const AUTH_VERIFY_ON_LOAD = true;
+    const NORMAL_LOGIN_MS = 24 * 60 * 60 * 1000;
     const STORAGE_KEY = 'minsugpt_chats_v1';
     const SLOT_X = [0, 11, 22];
 
@@ -1468,6 +1505,9 @@
 
     function clearAuthSession() {
       localStorage.removeItem(AUTH_STORAGE_KEY);
+      localStorage.removeItem(STORAGE_KEY);
+      sessionsStore = { sessions: [], currentId: null };
+      currentSessionId = null;
     }
 
     function setAuthSession(nextSession) {
@@ -1481,6 +1521,14 @@
         if (!raw) return null;
         const parsed = JSON.parse(raw);
         if (!parsed || !parsed.token) return null;
+        const issuedAtMs = Date.parse(parsed.issuedAt || '');
+        const expiresAtMs = Date.parse(parsed.expiresAt || '');
+        const fallbackExpires = issuedAtMs && !Number.isNaN(issuedAtMs) ? (issuedAtMs + NORMAL_LOGIN_MS) : 0;
+        const effectiveExpires = !Number.isNaN(expiresAtMs) && expiresAtMs ? expiresAtMs : fallbackExpires;
+        if (!effectiveExpires || Date.now() > effectiveExpires) {
+          clearAuthSession();
+          return null;
+        }
         return parsed;
       } catch {
         return null;
@@ -1680,6 +1728,7 @@
     let gradientWaveTimer = null;
     let authUser = null;
     let sessionsStore = { sessions: [], currentId: null };
+    let isLoadingSessions = false;
 
     if (typeof marked !== 'undefined') {
       marked.setOptions({ breaks: true, gfm: true });
@@ -1826,6 +1875,21 @@
       const store = loadStore();
       updateNavActiveState();
       chatHistoryList.innerHTML = '';
+      if (isLoadingSessions) {
+        const loading = document.createElement('div');
+        loading.className = 'history-loading-wrap';
+        loading.innerHTML = `
+          <div class="typing-dots" aria-label="채팅 기록 로딩 중">
+            <span style="transform: translate(0px, 0px)"></span>
+            <span style="transform: translate(11px, 0px)"></span>
+            <span style="transform: translate(22px, 0px)"></span>
+          </div>
+        `;
+        chatHistoryList.appendChild(loading);
+        const dots = loading.querySelector('.typing-dots');
+        if (dots) loading._stopAnim = bootTypingAnimation(dots);
+        return;
+      }
       if (!store.sessions.length) {
         const empty = document.createElement('p');
         empty.className = 'px-2 py-2 text-[11px] text-gray-400';
@@ -3219,11 +3283,16 @@
 
     function openProfileMenu(anchorEl) {
       if (!profileMenu || !anchorEl) return;
+      profileMenu.style.visibility = 'hidden';
+      profileMenu.style.display = 'block';
       const rect = anchorEl.getBoundingClientRect();
       const menuRect = profileMenu.getBoundingClientRect();
-      const top = Math.max(12, rect.top - (menuRect.height || 98) - 8);
-      let left = rect.left;
-      if (left > window.innerWidth - 170) left = window.innerWidth - 170;
+      profileMenu.style.display = '';
+      profileMenu.style.visibility = '';
+
+      const top = Math.min(window.innerHeight - (menuRect.height || 98) - 10, rect.bottom + 6);
+      let left = rect.right - (menuRect.width || 138);
+      if (left > window.innerWidth - (menuRect.width || 138) - 8) left = window.innerWidth - (menuRect.width || 138) - 8;
       profileMenu.style.top = top + 'px';
       profileMenu.style.left = Math.max(8, left) + 'px';
       profileMenu.classList.add('show');
@@ -3238,6 +3307,7 @@
     if (profileMenuTrigger) {
       profileMenuTrigger.addEventListener('click', (e) => {
         e.stopPropagation();
+        if (!profileMenu) return;
         if (profileMenu.classList.contains('show')) closeProfileMenu();
         else openProfileMenu(profileMenuTrigger);
       });
@@ -3245,6 +3315,7 @@
     if (profileMenuTriggerBtn) {
       profileMenuTriggerBtn.addEventListener('click', (e) => {
         e.stopPropagation();
+        if (!profileMenu) return;
         if (profileMenu.classList.contains('show')) closeProfileMenu();
         else openProfileMenu(profileMenuTriggerBtn);
       });
@@ -3271,29 +3342,23 @@
     (async function init() {
       const auth = await ensureAuthOrRedirect();
       if (!auth) return;
-      const localStore = (() => {
-        try {
-          return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-        } catch {
-          return {};
-        }
-      })();
+      isLoadingSessions = true;
+      renderSidebar();
       try {
         await fetchRemoteSessions();
       } catch (err) {
         console.error('[MinsuGPT][loadSessions]', err);
         showError('채팅 기록을 불러오지 못했습니다.');
+      } finally {
+        isLoadingSessions = false;
       }
-      const preferredId = localStore.currentId || null;
-      sessionsStore.currentId = preferredId && getSession(preferredId) ? preferredId : (sessionsStore.sessions[0]?.id || null);
-      currentSessionId = sessionsStore.currentId;
+      sessionsStore.currentId = null;
+      currentSessionId = null;
+      saveStore();
       renderSidebar();
       syncProfileAvatarFromName();
       startGradientAnimation();
-      if (currentSessionId && getSession(currentSessionId)) {
-        loadSession(currentSessionId);
-        freezeGradientNow();
-      }
+      showWelcomeLayout();
     })();
 
     const sidebarBackdrop = document.getElementById('sidebar-backdrop');

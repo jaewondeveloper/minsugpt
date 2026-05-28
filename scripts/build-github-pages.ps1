@@ -108,7 +108,35 @@ $shell = @'
   </style>
 </head>
 <body>
-  <iframe src="app/index.html" title="MinsuGPT" allow="clipboard-write"></iframe>
+  <script>
+    (function () {
+      function getAuth() {
+        try {
+          const raw = localStorage.getItem('minsugpt_auth_v1');
+          if (!raw) return null;
+          const parsed = JSON.parse(raw);
+          if (!parsed || !parsed.token) return null;
+          const issuedAtMs = Date.parse(parsed.issuedAt || '');
+          const expiresAtMs = Date.parse(parsed.expiresAt || '');
+          const fallbackExpires = issuedAtMs && !Number.isNaN(issuedAtMs) ? (issuedAtMs + 24 * 60 * 60 * 1000) : 0;
+          const effectiveExpires = (!Number.isNaN(expiresAtMs) && expiresAtMs) ? expiresAtMs : fallbackExpires;
+          if (!effectiveExpires || Date.now() > effectiveExpires) return null;
+          return parsed;
+        } catch {
+          return null;
+        }
+      }
+      if (!getAuth()) {
+        window.location.replace('login.html');
+        return;
+      }
+      const iframe = document.createElement('iframe');
+      iframe.src = 'app/index.html';
+      iframe.title = 'MinsuGPT';
+      iframe.setAttribute('allow', 'clipboard-write');
+      document.body.appendChild(iframe);
+    })();
+  </script>
 </body>
 </html>
 '@

@@ -116,6 +116,24 @@
             cursor: not-allowed;
             transform: scale(1);
         }
+        .btn-dots {
+            display: inline-flex;
+            gap: 4px;
+            align-items: center;
+        }
+        .btn-dots span {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: dotBlink 0.9s infinite ease-in-out;
+        }
+        .btn-dots span:nth-child(2) { animation-delay: 0.12s; }
+        .btn-dots span:nth-child(3) { animation-delay: 0.24s; }
+        @keyframes dotBlink {
+            0%, 80%, 100% { opacity: 0.28; transform: translateY(0); }
+            40% { opacity: 1; transform: translateY(-2px); }
+        }
         .email-login-form {
             width: 100%;
             display: none;
@@ -126,13 +144,34 @@
         .email-login-form.show {
             display: flex;
         }
+        .remember-row {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 8px;
+            padding: 0 4px;
+            font-size: 13px;
+            color: var(--text-muted);
+            user-select: none;
+        }
+        .remember-row input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            margin: 0;
+            border-radius: 5px;
+            accent-color: #111;
+            -webkit-appearance: auto;
+            appearance: auto;
+            cursor: pointer;
+        }
         .form-inputs {
             position: relative;
             display: flex;
             flex-direction: column;
             gap: 10px;
         }
-        input {
+        input[type="text"],
+        input[type="password"] {
             width: 100%;
             padding: 14px 20px;
             border: 1px solid var(--border-color);
@@ -141,7 +180,8 @@
             outline: none;
             -webkit-appearance: none;
         }
-        input:focus {
+        input[type="text"]:focus,
+        input[type="password"]:focus {
             border-color: #000;
         }
         .error-message {
@@ -243,6 +283,10 @@
                     <input type="password" id="passwordInput" placeholder="비밀번호" required>
                     <div class="error-message" id="loginError"></div>
                 </div>
+                <label class="remember-row" for="rememberLogin">
+                    <input id="rememberLogin" type="checkbox">
+                    자동 로그인 (최대 10일)
+                </label>
                 <button type="submit" id="submitBtn" class="login-btn black">계속하기</button>
             </form>
         </div>
@@ -263,11 +307,23 @@
             <button class="login-btn black" type="button" onclick="document.getElementById('unapprovedModal').style.display='none'">확인</button>
         </div>
     </div>
+    <div id="resetPasswordModal" class="modal">
+        <div class="modal-content">
+            <h2>비밀번호 재설정 필요</h2>
+            <p>관리자가 비밀번호를 초기화했습니다.<br>새 비밀번호를 설정해주세요.</p>
+            <input id="resetNewPasswordInput" type="password" placeholder="새 비밀번호 (8자 이상)" style="width:100%;padding:12px 16px;border:1px solid #e5e7eb;border-radius:10px;font-size:14px;margin-bottom:12px;">
+            <button id="resetPasswordSubmitBtn" class="login-btn black" type="button">비밀번호 변경</button>
+        </div>
+    </div>
 
     <script>
         const AUTH_BASE = 'https://jaewondev6.pythonanywhere.com';
         const AUTH_LOGIN_PATH = '/api/auth/login';
+        const AUTH_PENDING_CANCEL_PATH = '/api/auth/pending/cancel';
+        const AUTH_RESET_COMPLETE_PATH = '/api/auth/password/reset-complete';
         const AUTH_STORAGE_KEY = 'minsugpt_auth_v1';
+        const NORMAL_LOGIN_MS = 24 * 60 * 60 * 1000;
+        const REMEMBER_LOGIN_MS = 10 * 24 * 60 * 60 * 1000;
         const LOGIN_REDIRECT = './';
 
         const emailToggleBtn = document.getElementById('emailToggleBtn');
@@ -277,29 +333,53 @@
         const passwordInput = document.getElementById('passwordInput');
         const loginError = document.getElementById('loginError');
         const googleStubBtn = document.getElementById('googleStubBtn');
+        const rememberLoginInput = document.getElementById('rememberLogin');
+        const resetPasswordModal = document.getElementById('resetPasswordModal');
+        const resetNewPasswordInput = document.getElementById('resetNewPasswordInput');
+        const resetPasswordSubmitBtn = document.getElementById('resetPasswordSubmitBtn');
+        let pendingResetIdentifier = '';
+        let pendingResetPassword = '';
 
         function getStoredAuth() {
             try {
                 const raw = localStorage.getItem(AUTH_STORAGE_KEY);
                 if (!raw) return null;
                 const parsed = JSON.parse(raw);
-                return parsed && parsed.token ? parsed : null;
+                if (!parsed || !parsed.token) return null;
+                const expiresAt = Date.parse(parsed.expiresAt || '');
+                if (!expiresAt || Number.isNaN(expiresAt) || Date.now() > expiresAt) {
+                    localStorage.removeItem(AUTH_STORAGE_KEY);
+                    return null;
+                }
+                return parsed;
             } catch {
                 return null;
             }
         }
 
-        function saveAuth(token, user) {
+        function saveAuth(token, user, rememberLogin) {
+            const duration = rememberLogin ? REMEMBER_LOGIN_MS : NORMAL_LOGIN_MS;
+            const now = Date.now();
             localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({
                 token: token,
                 user: user || null,
-                issuedAt: new Date().toISOString()
+                remember: !!rememberLogin,
+                issuedAt: new Date(now).toISOString(),
+                expiresAt: new Date(now + duration).toISOString()
             }));
         }
 
         function parseToken(payload) {
             if (!payload || typeof payload !== 'object') return '';
             return payload.access_token || payload.token || payload.jwt || '';
+        }
+        function setSubmitLoading(loading) {
+            submitBtn.disabled = loading;
+            if (loading) {
+                submitBtn.innerHTML = '<span class="btn-dots" aria-label="로그인 중"><span></span><span></span><span></span></span>';
+            } else {
+                submitBtn.textContent = '계속하기';
+            }
         }
 
         if (getStoredAuth()) {
@@ -320,8 +400,7 @@
             e.preventDefault();
             loginError.classList.remove('show');
             loginError.innerText = '';
-            submitBtn.disabled = true;
-            submitBtn.innerText = '로그인 중...';
+            setSubmitLoading(true);
 
             try {
                 const identifier = emailInput.value.trim();
@@ -339,12 +418,16 @@
                 if (response.ok) {
                     const token = parseToken(result);
                     if (!token) throw new Error('응답에서 토큰을 찾지 못했습니다.');
-                    saveAuth(token, result.user || null);
+                    saveAuth(token, result.user || null, rememberLoginInput.checked);
                     location.href = 'index.html';
                     return;
                 }
                 if (result.error === 'unapproved') {
                     document.getElementById('unapprovedModal').style.display = 'flex';
+                } else if (result.error === 'password_reset_required') {
+                    pendingResetIdentifier = identifier;
+                    pendingResetPassword = passwordInput.value;
+                    resetPasswordModal.style.display = 'flex';
                 } else {
                     loginError.innerText = result.message || '아이디 또는 비밀번호가 일치하지 않습니다.';
                     loginError.classList.add('show');
@@ -354,8 +437,37 @@
                 loginError.innerText = '서버와 통신 중 오류가 발생했습니다.';
                 loginError.classList.add('show');
             } finally {
-                submitBtn.disabled = false;
-                submitBtn.innerText = '계속하기';
+                setSubmitLoading(false);
+            }
+        });
+
+        resetPasswordSubmitBtn.addEventListener('click', async () => {
+            const nextPassword = resetNewPasswordInput.value;
+            if (!nextPassword || nextPassword.length < 8) {
+                alert('새 비밀번호는 최소 8자 이상이어야 합니다.');
+                return;
+            }
+            resetPasswordSubmitBtn.disabled = true;
+            try {
+                const res = await fetch(AUTH_BASE + AUTH_RESET_COMPLETE_PATH, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        identifier: pendingResetIdentifier,
+                        password: pendingResetPassword,
+                        newPassword: nextPassword
+                    })
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    alert(data.error || data.message || '비밀번호 변경에 실패했습니다.');
+                    return;
+                }
+                alert('비밀번호가 변경되었습니다. 다시 로그인해주세요.');
+                resetPasswordModal.style.display = 'none';
+                resetNewPasswordInput.value = '';
+            } finally {
+                resetPasswordSubmitBtn.disabled = false;
             }
         });
     </script>

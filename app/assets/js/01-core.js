@@ -60,6 +60,28 @@ function iconNameMap(name) {
       });
     }
 
+    function parseAuthSessionRaw() {
+      try {
+        const raw = localStorage.getItem('minsugpt_auth_v1');
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || !parsed.token) return null;
+        const issuedAtMs = Date.parse(parsed.issuedAt || '');
+        const expiresAtMs = Date.parse(parsed.expiresAt || '');
+        const fallbackExpires = issuedAtMs && !Number.isNaN(issuedAtMs) ? (issuedAtMs + 24 * 60 * 60 * 1000) : 0;
+        const effectiveExpires = !Number.isNaN(expiresAtMs) && expiresAtMs ? expiresAtMs : fallbackExpires;
+        if (!effectiveExpires || Date.now() > effectiveExpires) return null;
+        return parsed;
+      } catch {
+        return null;
+      }
+    }
+
+    if (!parseAuthSessionRaw()) {
+      window.top.location.href = window.location.origin + window.location.pathname.replace(/\/app\/index\.html$/, '/login.html');
+      throw new Error('MinsuGPT auth required');
+    }
+
     renderRoundedIcons(document);
 
     const API_BASE = 'https://sigan.onrender.com';
@@ -69,6 +91,7 @@ function iconNameMap(name) {
     const AUTH_CHAT_SESSIONS_PATH = '/api/chat/sessions';
     const AUTH_STORAGE_KEY = 'minsugpt_auth_v1';
     const AUTH_VERIFY_ON_LOAD = true;
+    const NORMAL_LOGIN_MS = 24 * 60 * 60 * 1000;
     const STORAGE_KEY = 'minsugpt_chats_v1';
     const SLOT_X = [0, 11, 22];
 
@@ -85,6 +108,9 @@ function iconNameMap(name) {
 
     function clearAuthSession() {
       localStorage.removeItem(AUTH_STORAGE_KEY);
+      localStorage.removeItem(STORAGE_KEY);
+      sessionsStore = { sessions: [], currentId: null };
+      currentSessionId = null;
     }
 
     function setAuthSession(nextSession) {
@@ -98,6 +124,14 @@ function iconNameMap(name) {
         if (!raw) return null;
         const parsed = JSON.parse(raw);
         if (!parsed || !parsed.token) return null;
+        const issuedAtMs = Date.parse(parsed.issuedAt || '');
+        const expiresAtMs = Date.parse(parsed.expiresAt || '');
+        const fallbackExpires = issuedAtMs && !Number.isNaN(issuedAtMs) ? (issuedAtMs + NORMAL_LOGIN_MS) : 0;
+        const effectiveExpires = !Number.isNaN(expiresAtMs) && expiresAtMs ? expiresAtMs : fallbackExpires;
+        if (!effectiveExpires || Date.now() > effectiveExpires) {
+          clearAuthSession();
+          return null;
+        }
         return parsed;
       } catch {
         return null;
@@ -297,6 +331,7 @@ function iconNameMap(name) {
     let gradientWaveTimer = null;
     let authUser = null;
     let sessionsStore = { sessions: [], currentId: null };
+    let isLoadingSessions = false;
 
     if (typeof marked !== 'undefined') {
       marked.setOptions({ breaks: true, gfm: true });
@@ -443,6 +478,21 @@ function iconNameMap(name) {
       const store = loadStore();
       updateNavActiveState();
       chatHistoryList.innerHTML = '';
+      if (isLoadingSessions) {
+        const loading = document.createElement('div');
+        loading.className = 'history-loading-wrap';
+        loading.innerHTML = `
+          <div class="typing-dots" aria-label="채팅 기록 로딩 중">
+            <span style="transform: translate(0px, 0px)"></span>
+            <span style="transform: translate(11px, 0px)"></span>
+            <span style="transform: translate(22px, 0px)"></span>
+          </div>
+        `;
+        chatHistoryList.appendChild(loading);
+        const dots = loading.querySelector('.typing-dots');
+        if (dots) loading._stopAnim = bootTypingAnimation(dots);
+        return;
+      }
       if (!store.sessions.length) {
         const empty = document.createElement('p');
         empty.className = 'px-2 py-2 text-[11px] text-gray-400';

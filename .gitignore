@@ -3,3 +3,4 @@ Thumbs.db
 *.log
 server/auth.db
 server/.venv/
+admin/

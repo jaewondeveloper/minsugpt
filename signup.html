@@ -154,33 +154,33 @@
         .modal {
             display: none;
             position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.5);
+            inset: 0;
+            z-index: 14000;
+            background: rgba(15, 23, 42, 0.35);
             align-items: center;
             justify-content: center;
+            padding: 18px;
+            opacity: 1;
         }
         .modal-content {
-            background-color: #fff;
-            padding: 30px;
-            border-radius: 20px;
-            max-width: 340px;
-            width: 90%;
+            width: min(360px, 92vw);
+            border-radius: 18px;
+            border: 1px solid #e5e7eb;
+            background: #fff;
+            box-shadow: 0 18px 48px rgba(15, 23, 42, 0.22);
+            padding: 16px;
             text-align: center;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
         }
         .modal-content h2 {
             margin-top: 0;
-            font-size: 20px;
+            font-size: 15px;
+            color: #1f2937;
         }
         .modal-content p {
-            color: var(--text-muted);
-            font-size: 15px;
+            color: #6b7280;
+            font-size: 12px;
             line-height: 1.5;
-            margin-bottom: 25px;
+            margin-bottom: 12px;
         }
         @media (max-width: 480px) {
             h1 { font-size: 24px; }
@@ -243,9 +243,18 @@
 
     <div id="successModal" class="modal">
         <div class="modal-content">
-            <h2>계정 생성 완료!</h2>
-            <p>계정이 성공적으로 생성되었습니다.<br>관리자 승인 후 서비스를 이용할 수 있습니다.</p>
-            <button class="login-btn black" onclick="location.href='login.html'">로그인하러 가기</button>
+            <h2>승인 대기 중</h2>
+            <p>회원가입이 완료되었습니다.<br>관리자 승인 후 로그인할 수 있습니다.</p>
+            <button class="login-btn black" id="goLoginBtn" type="button">로그인 페이지로</button>
+            <button class="login-btn" id="cancelApprovalBtn" type="button" style="margin-top:8px;">승인 취소</button>
+        </div>
+    </div>
+    <div id="cancelConfirmModal" class="modal">
+        <div class="modal-content">
+            <h2>승인 취소</h2>
+            <p>승인 취소 시 계정이 삭제됩니다.<br>정말 진행할까요?</p>
+            <button class="login-btn black" id="confirmCancelBtn" type="button">확인</button>
+            <button class="login-btn" id="closeCancelBtn" type="button" style="margin-top:8px;">닫기</button>
         </div>
     </div>
 
@@ -253,6 +262,7 @@
         lucide.createIcons();
         const AUTH_BASE = 'https://jaewondev6.pythonanywhere.com';
         const AUTH_SIGNUP_PATH = '/api/auth/signup';
+        const AUTH_PENDING_CANCEL_PATH = '/api/auth/pending/cancel';
 
         let currentStep = 1;
         const nameInput = document.getElementById('nameInput');
@@ -264,6 +274,12 @@
         const next2 = document.getElementById('next2');
         const next3 = document.getElementById('next3');
         const finishBtn = document.getElementById('finishBtn');
+        const successModal = document.getElementById('successModal');
+        const cancelConfirmModal = document.getElementById('cancelConfirmModal');
+        const goLoginBtn = document.getElementById('goLoginBtn');
+        const cancelApprovalBtn = document.getElementById('cancelApprovalBtn');
+        const confirmCancelBtn = document.getElementById('confirmCancelBtn');
+        const closeCancelBtn = document.getElementById('closeCancelBtn');
 
         function goToStep(step) {
             document.querySelectorAll('.form-step').forEach((el) => el.classList.remove('active'));
@@ -344,12 +360,44 @@
                     finishBtn.innerText = '계정 생성하기';
                     return;
                 }
-                document.getElementById('successModal').style.display = 'flex';
+                successModal.style.display = 'flex';
             } catch (error) {
                 console.error('Signup Error:', error);
                 alert('서버와 통신 중 오류가 발생했습니다.');
                 finishBtn.disabled = false;
                 finishBtn.innerText = '계정 생성하기';
+            }
+        });
+
+        goLoginBtn.addEventListener('click', () => {
+            location.href = 'login.html';
+        });
+        cancelApprovalBtn.addEventListener('click', () => {
+            cancelConfirmModal.style.display = 'flex';
+        });
+        closeCancelBtn.addEventListener('click', () => {
+            cancelConfirmModal.style.display = 'none';
+        });
+        confirmCancelBtn.addEventListener('click', async () => {
+            confirmCancelBtn.disabled = true;
+            try {
+                const res = await fetch(AUTH_BASE + AUTH_PENDING_CANCEL_PATH, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        identifier: emailInput.value.trim(),
+                        password: passwordInput.value
+                    })
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    alert(data.error || data.message || '승인 취소에 실패했습니다.');
+                    return;
+                }
+                alert('승인 대기 계정이 삭제되었습니다.');
+                location.href = 'login.html';
+            } finally {
+                confirmCancelBtn.disabled = false;
             }
         });
     </script>

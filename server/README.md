@@ -15,18 +15,28 @@ Default URL: `http://127.0.0.1:5000`
 ## Environment Variables
 
 - `MINSUGPT_AUTH_SECRET` (required in production)
-- `MINSUGPT_TOKEN_MAX_AGE_SECONDS` (default: `604800`)
-- `MINSUGPT_CORS_ORIGINS` (default: `*`, comma-separated)
+- `MINSUGPT_TOKEN_MAX_AGE_SECONDS` (default: `864000`, 10 days)
+- `MINSUGPT_ALLOWED_ORIGINS` (default: `https://minsugpt.kro.kr,https://admin.minsugpt.kro.kr`)
 - `PORT` (default: `5000`)
 
 ## API
 
 - `POST /api/auth/login`
 - `POST /api/auth/signup`
+- `POST /api/auth/pending/cancel`
+- `POST /api/auth/password/reset-complete`
 - `GET /api/auth/verify` (Bearer token)
 - `GET /api/chat/sessions` (Bearer token)
 - `POST /api/chat/sessions` (Bearer token)
 - `DELETE /api/chat/sessions/<session_id>` (Bearer token)
+- `GET /api/admin/users` (admin token)
+- `POST /api/admin/users/<id>/approve`
+- `POST /api/admin/users/<id>/revoke-approval`
+- `POST /api/admin/users/<id>/deactivate`
+- `POST /api/admin/users/<id>/reset-password`
+- `DELETE /api/admin/users/<id>`
+- `GET /api/admin/users/<id>/usage`
+- `GET /api/admin/users/<id>/sessions`
 - `GET /api/health`
 
 ## Seeded Accounts
