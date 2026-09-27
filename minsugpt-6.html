@@ -251,54 +251,89 @@
       from { opacity: 0; transform: translateY(-6px); }
       to { opacity: 1; transform: translateY(0); }
     }
+    /* PC에서는 입력창이 꽤 넓어서(최대 40rem), 3등분으로 꽉 채우면 버튼이 거대해진다.
+       고정 크기로 왼쪽 정렬만 하고 나머지는 비워둔다. */
     .attach-panel-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      display: flex;
       gap: 8px;
     }
     .attach-square-btn {
-      aspect-ratio: 1 / 1;
+      width: 60px;
+      height: 60px;
+      flex-shrink: 0;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       gap: 4px;
-      border-radius: 18px;
+      border-radius: 16px;
       background: #f0f4f9;
       color: #374151;
-      font-size: 11.5px;
+      font-size: 10.5px;
       font-weight: 500;
-      transition: background-color 0.15s ease, transform 0.15s ease;
+      transition: background-color 0.15s ease, transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.15s ease;
+    }
+    .attach-square-btn:hover {
+      background: #e8edf5;
+      transform: translateY(-1px);
     }
     .attach-square-btn:active {
-      transform: scale(0.95);
+      transform: scale(0.93);
       background: #e4eaf3;
     }
     .attach-square-btn iconify-icon {
-      font-size: 22px;
+      font-size: 19px;
       color: #4b5563;
+      transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .attach-square-btn:active iconify-icon {
+      transform: scale(0.88);
+    }
+    /* 생각 더 하기 / 검색 - 한 줄에 나란히 */
+    .attach-toggle-group {
+      display: flex;
+      gap: 8px;
     }
     .attach-toggle-row {
       display: flex;
       align-items: center;
-      gap: 8px;
-      width: 100%;
-      height: 40px;
-      padding: 0 14px;
-      border-radius: 14px;
+      justify-content: center;
+      gap: 6px;
+      flex: 1 1 0;
+      height: 38px;
+      padding: 0 10px;
+      border-radius: 12px;
       background: #f0f4f9;
       color: #374151;
-      font-size: 13px;
+      font-size: 12.5px;
       font-weight: 500;
-      transition: background-color 0.18s ease, color 0.18s ease;
+      transition: background-color 0.22s ease, color 0.22s ease, transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .attach-toggle-row:hover {
+      background: #e8edf5;
+    }
+    .attach-toggle-row:active {
+      transform: scale(0.96);
+    }
+    .attach-toggle-row iconify-icon {
+      transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
     .attach-toggle-row.active {
       background: #fdf0d5;
       color: #92640a;
+      animation: toggleRowPop 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .attach-toggle-row.active iconify-icon {
+      transform: scale(1.15) rotate(-6deg);
     }
     .attach-toggle-row#toggle-search.active {
       background: #dbeeff;
       color: #1d5f99;
+    }
+    @keyframes toggleRowPop {
+      0% { transform: scale(0.94); }
+      55% { transform: scale(1.035); }
+      100% { transform: scale(1); }
     }
     .attach-panel-close-btn {
       display: flex;
@@ -310,8 +345,14 @@
       color: #9ca3af;
       font-size: 12px;
       margin-top: 2px;
+      transition: color 0.15s ease, transform 0.15s ease;
     }
-    .attach-panel-close-btn iconify-icon { transform: rotate(180deg); }
+    .attach-panel-close-btn:hover { color: #6b7280; }
+    .attach-panel-close-btn:active { transform: scale(0.96); }
+    .attach-panel-close-btn iconify-icon {
+      transform: rotate(180deg);
+      transition: transform 0.2s ease;
+    }
 
     /* + 버튼 옆에 표시되는, 지금 켜져 있는 토글 아이콘들 */
     .active-toggle-icons {
@@ -329,6 +370,11 @@
       align-items: center;
       justify-content: center;
       font-size: 12px;
+      animation: activeIconPop 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    @keyframes activeIconPop {
+      0% { transform: scale(0.4); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
     }
     .active-toggle-icons .active-toggle-icon.reasoning {
       background: #fdf0d5;
@@ -1776,14 +1822,16 @@
             <span>카메라</span>
           </button>
         </div>
-        <button type="button" id="toggle-reasoning" class="attach-toggle-row">
-          <i data-lucide="brain" class="w-4 h-4"></i>
-          <span>생각 더 하기</span>
-        </button>
-        <button type="button" id="toggle-search" class="attach-toggle-row">
-          <i data-lucide="search" class="w-4 h-4"></i>
-          <span>검색</span>
-        </button>
+        <div class="attach-toggle-group">
+          <button type="button" id="toggle-reasoning" class="attach-toggle-row">
+            <i data-lucide="brain" class="w-4 h-4"></i>
+            <span>생각 더 하기</span>
+          </button>
+          <button type="button" id="toggle-search" class="attach-toggle-row">
+            <i data-lucide="search" class="w-4 h-4"></i>
+            <span>검색</span>
+          </button>
+        </div>
         <button type="button" id="attach-panel-close" class="attach-panel-close-btn">
           <i data-lucide="chevron-down" class="w-4 h-4"></i>
           <span>닫기</span>
