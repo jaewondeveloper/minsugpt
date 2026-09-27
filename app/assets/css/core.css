@@ -133,6 +133,25 @@
       justify-content: center;
     }
 
+    /* 전송 버튼 - 노란색→파란색 그라데이션 알약(pill) 버튼 */
+    #send-btn.send-btn-gradient {
+      background: linear-gradient(135deg, #ffd93d 0%, #4dabff 100%);
+      box-shadow: 0 3px 10px rgba(77, 171, 255, 0.35);
+    }
+    #send-btn.send-btn-gradient:active {
+      filter: brightness(0.95);
+    }
+
+    /* AI 말풍선에 스트리밍으로 표시되는 오류 메시지 톤 */
+    .msg-assistant-error {
+      color: #c0392b !important;
+    }
+    .msg-assistant-error .text-gray-900,
+    .msg-assistant-error .text-gray-800,
+    .msg-assistant-error .text-gray-700 {
+      color: #c0392b !important;
+    }
+
     /* --- 모바일 스타일 리플(Ripple) 효과 --- */
     .ripple-btn {
       position: relative;

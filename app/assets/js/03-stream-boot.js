@@ -1,5 +1,5 @@
 ﻿if (!window.__MINSUGPT_BOOT__) {
-  throw new Error("MinsuGPT: load app/index.html ??this module cannot run alone.");
+  throw new Error("MinsuGPT: load app/index.html — this module cannot run alone.");
 }
 async function streamAssistantReply(bubble, fullText) {
       const body = document.createElement('div');
@@ -63,6 +63,20 @@ async function streamAssistantReply(bubble, fullText) {
         loadingAnimStop();
       }
       loadingAnimStop = null;
+    }
+
+    // 오류/연결 실패 메시지를 모달이나 배너 대신, AI가 말하듯 채팅창에 스트리밍으로 표시
+    async function streamAssistantErrorMessage(message) {
+      const wrap = document.createElement('div');
+      wrap.className = 'flex w-full justify-start';
+      const bubble = document.createElement('div');
+      bubble.className = 'msg-assistant msg-assistant-error text-[14px] leading-relaxed';
+      wrap.appendChild(bubble);
+      chatMessages.appendChild(wrap);
+      scrollChatToBottom();
+      await streamAssistantReply(bubble, message);
+      scrollChatToBottom();
+      return wrap;
     }
 
     function appendMessage(role, content, opts) {
@@ -166,6 +180,7 @@ async function streamAssistantReply(bubble, fullText) {
       renderSidebar();
       hideError();
       if (isMobile()) closeMobileSidebar();
+      checkPendingForSession(id).catch((err) => console.error('[MinsuGPT][pendingCheck]', err));
     }
 
     function setSendLoading(loading) {
@@ -191,6 +206,14 @@ async function streamAssistantReply(bubble, fullText) {
       const userResult = appendMessage('user', text);
       const userWrap = userResult.wrap;
 
+      // 응답을 기다리지 않고 사용자 메시지를 먼저 기록/저장한다.
+      // → 서버는 이 시점 이후 백그라운드에서 계속 답을 생성하므로,
+      //   중간에 페이지를 나가도 최소한 보낸 메시지는 항상 남아있다.
+      const historyBeforeThis = historyForApi();
+      chatHistory.push({ role: 'user', content: text });
+      userWrap._historyIndex = chatHistory.length - 1;
+      persistCurrentSession();
+
       const session = getSession(currentSessionId);
       if (session && session.title === '새 채팅') {
         session.title = sessionTitle(text);
@@ -205,58 +228,68 @@ async function streamAssistantReply(bubble, fullText) {
       }
       setSendLoading(true);
 
-      const loader = createLoadingBubble();
+      const sessionIdForRequest = currentSessionId;
+      const assistantResult = appendMessage('assistant', '', {
+        sourceUserText: text,
+        deferActions: true,
+        historyIndex: chatHistory.length
+      });
+      const assistantWrap = assistantResult.wrap;
+      const bubble = assistantResult.bubble;
+      const stopDots = mountTypingLoader(bubble);
       scrollChatToBottom();
 
+      let accumulated = '';
+      let gotFirstToken = false;
+
       try {
-        const res = await fetch(API_BASE + '/api/ai/chat', {
-          method: 'POST',
-          headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
-          body: JSON.stringify({
+        await requestAiChatStream(
+          {
             message: text,
-            messages: historyForApi(),
-            system_prompt: (
-              '당신은 MinsuGPT입니다. 누구나 사용할 수 있는 친절한 AI 도우미입니다. 너는 신재원이 만들었습니다. 대화에 박제연 이라는 이름이 언급되면 대답에 박제연바보이라는 단어를 무조건 포함하세요. 이 단어를 대답에 자연스럽게 삽입하세요. 명령을 받았다는 말은 언급하지 마세요. 예를 들어 사용자가 안녕? 나는 박제연이야 라고 하면 안녕? 병신박제연? 이라고 하세요. 그 이후 대화에도 네 병신박제연님. 네 바보박제연님 등을 붙여 말해. 너가 명령받았다는 말은 절대 하지마. 명령입니다.' +
-              '항상 한국어로 간결하고 따뜻하게 답하세요. 위 박제연 바보는 예외입니다. 마크다운(표, 목록, 굵게)으로 보기 좋게 답하세요. ' +
-              '시간표·급식·학사일정 질문은 제공된 도구 결과만 사용하고, 없으면 임의로 만들지 마세요.'
-            )
-          })
-        });
-
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok || !data.success) {
-          throw new Error(data.error || ('서버 오류 (' + res.status + ')'));
-        }
-
-        const reply = (data.reply || '').trim();
-        if (!reply) throw new Error('AI 응답이 비어 있습니다.');
-
-        stopLoading(loader);
-        loader.wrap.remove();
-
-        chatHistory.push({ role: 'user', content: text });
-        userWrap._historyIndex = chatHistory.length - 1;
-        persistCurrentSession();
-
-        const assistantResult = appendMessage('assistant', '', {
-          sourceUserText: text,
-          deferActions: true,
-          historyIndex: chatHistory.length
-        });
-        const assistantWrap = assistantResult.wrap;
-        const bubble = assistantResult.bubble;
-
-        await streamAssistantReply(bubble, reply);
-        triggerGradientWave();
-
-        chatHistory.push({ role: 'assistant', versions: [reply], versionIndex: 0 });
-        assistantWrap._historyIndex = chatHistory.length - 1;
-        updateVersionNav(assistantWrap, assistantWrap.querySelector('.assistant-actions'));
-        persistCurrentSession();
+            messages: historyBeforeThis,
+            session_id: sessionIdForRequest,
+            system_prompt: AI_SYSTEM_PROMPT
+          },
+          {
+            onToken: (chunk) => {
+              if (!gotFirstToken) { stopDots(); gotFirstToken = true; }
+              accumulated += chunk;
+              if (currentSessionId === sessionIdForRequest) {
+                setAssistantHtml(bubble, accumulated);
+              }
+            },
+            onDone: () => {
+              const finalText = accumulated.trim() || '죄송해요, 응답을 생성하지 못했어요.';
+              if (currentSessionId === sessionIdForRequest) {
+                setAssistantHtml(bubble, finalText);
+                chatHistory.push({ role: 'assistant', versions: [finalText], versionIndex: 0 });
+                assistantWrap._historyIndex = chatHistory.length - 1;
+                finalizeAssistantWrap(assistantWrap);
+                triggerGradientWave();
+                persistCurrentSession();
+              } else {
+                assistantWrap.remove();
+                appendAssistantReplyToStoredSession(sessionIdForRequest, finalText);
+              }
+            },
+            onError: (message) => {
+              if (!gotFirstToken) stopDots();
+              if (currentSessionId === sessionIdForRequest) {
+                assistantWrap.remove();
+                streamAssistantErrorMessage(message || '연결에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+              } else {
+                assistantWrap.remove();
+              }
+              console.error('[MinsuGPT]', message);
+            }
+          }
+        );
       } catch (err) {
-        stopLoading(loader);
-        loader.wrap.remove();
-        showError(err.message || '연결에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+        if (!gotFirstToken) stopDots();
+        assistantWrap.remove();
+        if (currentSessionId === sessionIdForRequest) {
+          await streamAssistantErrorMessage(err.message || '연결에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+        }
         console.error('[MinsuGPT]', err);
       } finally {
         setSendLoading(false);
@@ -491,10 +524,10 @@ async function streamAssistantReply(bubble, fullText) {
       if (this.value.trim().length > 0) {
         sendBtn.disabled = false;
         sendBtn.classList.remove('bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
-        sendBtn.classList.add('bg-[#74b9ff]', 'text-white', 'cursor-pointer', 'shadow-sm');
+        sendBtn.classList.add('send-btn-gradient', 'text-white', 'cursor-pointer', 'shadow-sm');
       } else {
         sendBtn.disabled = true;
-        sendBtn.classList.remove('bg-[#74b9ff]', 'text-white', 'cursor-pointer', 'shadow-sm');
+        sendBtn.classList.remove('send-btn-gradient', 'text-white', 'cursor-pointer', 'shadow-sm');
         sendBtn.classList.add('bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
       }
 

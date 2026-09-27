@@ -1,5 +1,5 @@
 ﻿if (!window.__MINSUGPT_BOOT__) {
-  throw new Error("MinsuGPT: load app/index.html ??this module cannot run alone.");
+  throw new Error("MinsuGPT: load app/index.html — this module cannot run alone.");
 }
 function iconNameMap(name) {
       const map = {
@@ -88,7 +88,15 @@ function iconNameMap(name) {
 
     renderRoundedIcons(document);
 
-    const API_BASE = 'https://sigan.onrender.com';
+    const API_BASE = 'https://minsuapi.corerepublix.co.kr';
+    const AI_CHAT_PATH = '/api/ai/chat';
+    const AI_CHAT_PENDING_PATH = '/api/ai/chat/pending';
+    const AI_CHAT_STREAM_PATH = '/api/ai/chat/stream/';
+    const AI_SYSTEM_PROMPT = (
+      '당신은 MinsuGPT입니다. 누구나 사용할 수 있는 친절한 AI 도우미입니다. ' +
+      '항상 한국어로 간결하고 따뜻하게 답하세요. 마크다운(표, 목록, 굵게)으로 보기 좋게 답하세요. ' +
+      '시간표·급식·학사일정 질문은 제공된 도구 결과만 사용하고, 없으면 임의로 만들지 마세요.'
+    );
     const AUTH_BASE = 'https://jaewondev6.pythonanywhere.com';
     const AUTH_LOGIN_PATH = '/api/auth/login';
     const AUTH_VERIFY_PATH = '/api/auth/verify';
@@ -240,6 +248,208 @@ function iconNameMap(name) {
         throw new Error(data.error || data.message || ('요청 실패 (' + res.status + ')'));
       }
       return data;
+    }
+
+    // ── AI 채팅 백엔드(SSE 스트리밍) 통신 헬퍼 ──
+    // 백엔드는 text/event-stream 으로 응답한다. 각 이벤트는 "data: {...}\n\n" 형태이며
+    // {"type":"meta","job_id":...} → {"type":"token","content":...}(여러 번) → {"type":"done"}
+    // (실패 시 {"type":"error","message":...}) 순서로 온다.
+    function dispatchSSEPayload(payload, handlers) {
+      if (!payload || !payload.type) return;
+      if (payload.type === 'meta' && handlers.onMeta) handlers.onMeta(payload.job_id);
+      else if (payload.type === 'token' && handlers.onToken) handlers.onToken(payload.content || '');
+      else if (payload.type === 'done' && handlers.onDone) handlers.onDone();
+      else if (payload.type === 'error' && handlers.onError) handlers.onError(payload.message || '오류가 발생했습니다.');
+    }
+
+    function parseSSEChunk(buffer, handlers) {
+      let idx;
+      while ((idx = buffer.indexOf('\n\n')) !== -1) {
+        const rawEvent = buffer.slice(0, idx);
+        buffer = buffer.slice(idx + 2);
+        const dataLine = rawEvent.split('\n').find((l) => l.startsWith('data:'));
+        if (!dataLine) continue;
+        const jsonStr = dataLine.slice(5).trim();
+        if (!jsonStr) continue;
+        try {
+          dispatchSSEPayload(JSON.parse(jsonStr), handlers);
+        } catch {
+          // 잘린 JSON 등은 무시
+        }
+      }
+      return buffer;
+    }
+
+    async function consumeSSEResponse(res, handlers) {
+      if (!res.body || !res.body.getReader) {
+        // 스트리밍을 지원하지 않는 아주 오래된 환경 대비: 전체 텍스트를 한 번에 파싱
+        const text = await res.text();
+        parseSSEChunk(text.endsWith('\n\n') ? text : text + '\n\n', handlers);
+        return;
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        buffer = parseSSEChunk(buffer, handlers);
+      }
+    }
+
+    async function requestAiChatStream(body, handlers) {
+      let res;
+      try {
+        res = await fetch(API_BASE + AI_CHAT_PATH, {
+          method: 'POST',
+          headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+          body: JSON.stringify(body)
+        });
+      } catch (err) {
+        handlers.onError && handlers.onError(err.message || '연결에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+        return;
+      }
+      if (!res.ok) {
+        let message = '서버 오류 (' + res.status + ')';
+        try {
+          const data = await res.json();
+          if (data && data.error) message = data.error;
+        } catch { /* 무시 */ }
+        handlers.onError && handlers.onError(message);
+        return;
+      }
+      await consumeSSEResponse(res, handlers);
+    }
+
+    async function reattachToJobStream(jobId, handlers) {
+      let res;
+      try {
+        res = await fetch(API_BASE + AI_CHAT_STREAM_PATH + encodeURIComponent(jobId), {
+          method: 'GET',
+          headers: authHeaders()
+        });
+      } catch (err) {
+        handlers.onError && handlers.onError(err.message || '연결에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+        return;
+      }
+      if (!res.ok) {
+        handlers.onError && handlers.onError('서버 오류 (' + res.status + ')');
+        return;
+      }
+      await consumeSSEResponse(res, handlers);
+    }
+
+    // 자리를 비운 사이 완료된(또는 아직 진행 중인) 답변이 있는지 확인.
+    // 채팅방을 열 때(loadSession)마다 호출한다.
+    async function checkPendingForSession(sessionId) {
+      if (!sessionId) return;
+      let res;
+      try {
+        res = await fetch(API_BASE + AI_CHAT_PENDING_PATH + '?session_id=' + encodeURIComponent(sessionId), {
+          headers: authHeaders()
+        });
+      } catch (err) {
+        console.error('[MinsuGPT][pendingCheck]', err);
+        return;
+      }
+      if (!res.ok) return;
+      let data;
+      try { data = await res.json(); } catch { return; }
+      if (!data || !data.success || !data.has_pending) return;
+
+      if (data.status === 'done') {
+        finishPendingReply(sessionId, (data.reply || '').trim());
+      } else if (data.status === 'running') {
+        resumePendingStream(sessionId, data.job_id);
+      }
+      // status === 'error' 인 경우는 조용히 무시 (사용자가 다시 보내면 됨)
+    }
+
+    // 현재 화면에 떠 있지 않은 세션의 저장소에 어시스턴트 답변만 추가로 반영
+    // (응답을 기다리는 도중 사용자가 다른 채팅방으로 이동한 경우 등)
+    function appendAssistantReplyToStoredSession(sessionId, assistantText) {
+      if (!assistantText) return;
+      const session = getSession(sessionId);
+      if (!session) return;
+      session.messages = session.messages || [];
+      session.messages.push({ role: 'assistant', versions: [assistantText], versionIndex: 0 });
+      session.updatedAt = new Date().toISOString();
+      upsertSession(session);
+      renderSidebar();
+      syncSessionToServer(session).catch((err) => console.error('[MinsuGPT][bgPersist]', err));
+    }
+
+    function finishPendingReply(sessionId, text) {
+      if (!text) return;
+      const session = getSession(sessionId);
+      if (!session) return;
+      session.messages = session.messages || [];
+      session.messages.push({ role: 'assistant', versions: [text], versionIndex: 0 });
+      session.updatedAt = new Date().toISOString();
+      upsertSession(session);
+      renderSidebar();
+      syncSessionToServer(session).catch((err) => console.error('[MinsuGPT][pendingPersist]', err));
+
+      if (currentSessionId === sessionId) {
+        showChatLayout();
+        chatHistory.push({ role: 'assistant', versions: [text], versionIndex: 0 });
+        const result = appendMessage('assistant', '', { deferActions: true, historyIndex: chatHistory.length - 1 });
+        streamAssistantReply(result.bubble, text);
+        scrollChatToBottom();
+      }
+    }
+
+    function resumePendingStream(sessionId, jobId) {
+      if (currentSessionId === sessionId) {
+        showChatLayout();
+        const result = appendMessage('assistant', '', { deferActions: true, historyIndex: chatHistory.length });
+        const stopDots = mountTypingLoader(result.bubble);
+        let accumulated = '';
+        let gotFirstToken = false;
+        reattachToJobStream(jobId, {
+          onToken: (chunk) => {
+            if (!gotFirstToken) { stopDots(); gotFirstToken = true; }
+            accumulated += chunk;
+            setAssistantHtml(result.bubble, accumulated);
+          },
+          onDone: () => {
+            const finalText = accumulated.trim() || '죄송해요, 응답을 생성하지 못했어요.';
+            if (currentSessionId === sessionId) {
+              setAssistantHtml(result.bubble, finalText);
+              chatHistory.push({ role: 'assistant', versions: [finalText], versionIndex: 0 });
+              result.wrap._historyIndex = chatHistory.length - 1;
+              finalizeAssistantWrap(result.wrap);
+              persistCurrentSession();
+            } else {
+              result.wrap.remove();
+              appendAssistantReplyToStoredSession(sessionId, finalText);
+            }
+          },
+          onError: (message) => {
+            stopDots();
+            result.wrap.remove();
+            streamAssistantErrorMessage(message || '연결에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+          }
+        });
+      } else {
+        // 다른 채팅방을 보는 중이면 화면은 건드리지 않고 조용히 이어받아 해당 세션 저장소에만 반영
+        let accumulated = '';
+        reattachToJobStream(jobId, {
+          onToken: (chunk) => { accumulated += chunk; },
+          onDone: () => {
+            appendAssistantReplyToStoredSession(sessionId, accumulated.trim() || '죄송해요, 응답을 생성하지 못했어요.');
+          },
+          onError: (message) => console.error('[MinsuGPT][resumeStream]', message)
+        });
+      }
+    }
+
+    function finalizeAssistantWrap(wrap) {
+      wrap.classList.remove('actions-pending');
+      wrap.classList.add('actions-ready');
+      updateVersionNav(wrap, wrap.querySelector('.assistant-actions'));
+      updateAssistantActionVisibility();
     }
 
     async function fetchRemoteSessions() {
@@ -496,13 +706,11 @@ function iconNameMap(name) {
     });
 
     async function removeSessionById(id) {
-      try {
-        await deleteSessionFromServer(id);
-      } catch (err) {
-        console.error('[MinsuGPT][deleteSession]', err);
-        showError('채팅 삭제에 실패했습니다.');
-        return false;
-      }
+      const removedIndex = sessionsStore.sessions.findIndex((s) => s.id === id);
+      const removedSession = removedIndex !== -1 ? sessionsStore.sessions[removedIndex] : null;
+      const prevCurrentId = sessionsStore.currentId;
+
+      // 낙관적 업데이트: 서버 응답을 기다리지 않고 목록에서 즉시 제거
       sessionsStore.sessions = sessionsStore.sessions.filter((s) => s.id !== id);
       if (sessionsStore.currentId === id) sessionsStore.currentId = sessionsStore.sessions[0]?.id || null;
       saveStore();
@@ -512,6 +720,22 @@ function iconNameMap(name) {
         loadSession(sessionsStore.currentId);
       } else {
         renderSidebar();
+      }
+
+      try {
+        await deleteSessionFromServer(id);
+      } catch (err) {
+        console.error('[MinsuGPT][deleteSession]', err);
+        // 실패 시 원래 상태로 복구
+        if (removedSession) {
+          const insertAt = Math.min(removedIndex, sessionsStore.sessions.length);
+          sessionsStore.sessions.splice(insertAt, 0, removedSession);
+        }
+        sessionsStore.currentId = prevCurrentId;
+        saveStore();
+        renderSidebar();
+        showError('채팅 삭제에 실패했습니다.');
+        return false;
       }
       return true;
     }
