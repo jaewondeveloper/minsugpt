@@ -1,5 +1,5 @@
 ﻿if (!window.__MINSUGPT_BOOT__) {
-  throw new Error("MinsuGPT: load app/index.html ??this module cannot run alone.");
+  throw new Error("MinsuGPT: load app/index.html — this module cannot run alone.");
 }
 let userMessageMenuTarget = null;
     const userMessageMenu = document.getElementById('user-message-menu');
@@ -441,46 +441,64 @@ let userMessageMenuTarget = null;
       wrap.classList.add('actions-pending');
 
       const stopDots = mountTypingLoader(bubble);
+      const sessionIdForRequest = currentSessionId;
+      let accumulated = '';
+      let gotFirstToken = false;
 
       try {
-        const res = await fetch(API_BASE + '/api/ai/chat', {
-          method: 'POST',
-          headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
-          body: JSON.stringify({
+        await requestAiChatStream(
+          {
             message: userText,
             messages: historyForApi(idx),
-            system_prompt: (
-              '당신은 MinsuGPT입니다. 누구나 사용할 수 있는 친절한 AI 도우미입니다. ' +
-              '항상 한국어로 간결하고 따뜻하게 답하세요. 마크다운(표, 목록, 굵게)으로 보기 좋게 답하세요. ' +
-              '시간표·급식·학사일정 질문은 제공된 도구 결과만 사용하고, 없으면 임의로 만들지 마세요.'
-            )
-          })
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok || !data.success) {
-          throw new Error(data.error || ('서버 오류 (' + res.status + ')'));
-        }
-        const reply = (data.reply || '').trim();
-        if (!reply) throw new Error('AI 응답이 비어 있습니다.');
+            session_id: sessionIdForRequest,
+            system_prompt: AI_SYSTEM_PROMPT
+          },
+          {
+            onToken: (chunk) => {
+              if (!gotFirstToken) { stopDots(); gotFirstToken = true; }
+              accumulated += chunk;
+              if (currentSessionId === sessionIdForRequest) {
+                setAssistantHtml(bubble, accumulated);
+              }
+            },
+            onDone: () => {
+              const finalText = accumulated.trim() || '죄송해요, 응답을 생성하지 못했어요.';
+              if (currentSessionId === sessionIdForRequest) {
+                const norm = normalizeAssistantMessage(entry);
+                norm.versions.push(finalText);
+                norm.versionIndex = norm.versions.length - 1;
+                chatHistory[idx] = norm;
 
-        stopDots();
-
-        const norm = normalizeAssistantMessage(entry);
-        norm.versions.push(reply);
-        norm.versionIndex = norm.versions.length - 1;
-        chatHistory[idx] = norm;
-
-        await streamAssistantReply(bubble, reply);
-        triggerGradientWave();
-        updateVersionNav(wrap, wrap.querySelector('.assistant-actions'));
-        persistCurrentSession();
+                setAssistantHtml(bubble, finalText);
+                triggerGradientWave();
+                finalizeAssistantWrap(wrap);
+                persistCurrentSession();
+              } else {
+                appendAssistantReplyToStoredSession(sessionIdForRequest, finalText);
+              }
+            },
+            onError: (message) => {
+              if (!gotFirstToken) stopDots();
+              if (currentSessionId === sessionIdForRequest) {
+                const norm = normalizeAssistantMessage(entry);
+                setAssistantHtml(bubble, assistantActiveContent(norm));
+                wrap.classList.remove('actions-pending');
+                wrap.classList.add('actions-ready');
+                streamAssistantErrorMessage(message || '연결에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+              }
+              console.error('[MinsuGPT]', message);
+            }
+          }
+        );
       } catch (err) {
-        stopDots();
-        const norm = normalizeAssistantMessage(entry);
-        setAssistantHtml(bubble, assistantActiveContent(norm));
-        wrap.classList.remove('actions-pending');
-        wrap.classList.add('actions-ready');
-        showError(err.message || '연결에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+        if (!gotFirstToken) stopDots();
+        if (currentSessionId === sessionIdForRequest) {
+          const norm = normalizeAssistantMessage(entry);
+          setAssistantHtml(bubble, assistantActiveContent(norm));
+          wrap.classList.remove('actions-pending');
+          wrap.classList.add('actions-ready');
+          await streamAssistantErrorMessage(err.message || '연결에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+        }
         console.error('[MinsuGPT]', err);
       } finally {
         isRegenerating = false;
