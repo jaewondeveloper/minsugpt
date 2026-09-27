@@ -471,6 +471,7 @@ function iconNameMap(name) {
       if (!assistantText) return;
       const session = getSession(sessionId);
       if (!session) return;
+      if (lastAssistantMessageHasVersion(session, assistantText)) return;
       session.messages = session.messages || [];
       session.messages.push({ role: 'assistant', versions: [assistantText], versionIndex: 0 });
       session.updatedAt = new Date().toISOString();
@@ -479,10 +480,24 @@ function iconNameMap(name) {
       syncSessionToServer(session).catch((err) => console.error('[MinsuGPT][bgPersist]', err));
     }
 
+    // 이미 저장된 마지막 답변과 같은 내용이면 중복 추가하지 않는다.
+    // (채팅방을 나갔다 들어올 때마다 서버에 "아직 못 받은 답변 있어?"를 물어보는데,
+    //  이미 받아서 저장까지 끝난 답변인데도 서버가 계속 완료된 대기 답변으로 보고하면
+    //  재입장할 때마다 같은 답변이 한 번씩 더 쌓이는 문제가 있었다.)
+    function lastAssistantMessageHasVersion(session, text) {
+      const messages = (session && session.messages) || [];
+      const last = messages[messages.length - 1];
+      if (!last || last.role !== 'assistant') return false;
+      const norm = normalizeAssistantMessage(last);
+      const target = (text || '').trim();
+      return norm.versions.some((v) => (v || '').trim() === target);
+    }
+
     function finishPendingReply(sessionId, text) {
       if (!text) return;
       const session = getSession(sessionId);
       if (!session) return;
+      if (lastAssistantMessageHasVersion(session, text)) return;
       session.messages = session.messages || [];
       session.messages.push({ role: 'assistant', versions: [text], versionIndex: 0 });
       session.updatedAt = new Date().toISOString();

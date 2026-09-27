@@ -281,6 +281,8 @@
       max-width: 85%;
       padding: 10px 20px;
       user-select: text;
+      white-space: pre-wrap;
+      overflow-wrap: break-word;
     }
     .user-msg-wrap {
       display: flex;
@@ -367,7 +369,6 @@
       align-items: center;
     }
     .msg-assistant .typing-dots {
-      display: block;
       flex-shrink: 0;
     }
     .assistant-action-btn.is-busy {
