@@ -473,20 +473,28 @@ async function streamAssistantReply(bubble, fullText) {
       sidebar.style.transition = 'none';
       sidebar.style.transform = 'translateX(-100%)';
       sidebar.classList.remove('hidden');
+      sidebarBackdrop.style.transition = 'none';
       sidebarBackdrop.style.opacity = '0';
       sidebarBackdrop.classList.remove('hidden');
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          sidebar.style.transition = '';
-          sidebar.style.transform = 'translateX(0)';
-          sidebarBackdrop.style.opacity = '1';
-        });
-      });
+
+      // 강제 리플로우: 위에서 지정한 '닫힌' 상태를 브라우저가 바로 반영하게 만든다.
+      // (requestAnimationFrame을 두 번 쌓아서 다음 프레임에 열리게 하던 예전 방식은
+      //  드물게 프레임이 씹히면 열림 애니메이션 자체가 실행되지 않고 사이드바가
+      //  화면 밖(-100%)에 그대로 남은 채 배경만 어두워지는 문제가 있었다.
+      //  offsetWidth를 읽으면 그 시점에 스타일이 즉시 반영되므로 rAF 타이밍에
+      //  기댈 필요가 없다.)
+      void sidebar.offsetWidth;
+
+      sidebar.style.transition = '';
+      sidebar.style.transform = 'translateX(0)';
+      sidebarBackdrop.style.transition = '';
+      sidebarBackdrop.style.opacity = '1';
     }
 
     function closeMobileSidebar() {
       sidebar.style.transition = '';
       sidebar.style.transform = 'translateX(-100%)';
+      sidebarBackdrop.style.transition = '';
       sidebarBackdrop.style.opacity = '0';
       setTimeout(() => {
         sidebar.classList.add('hidden');
@@ -556,8 +564,8 @@ async function streamAssistantReply(bubble, fullText) {
       }
     }, { passive: true });
 
-    sidebar.addEventListener('touchend', function(e) {
-      if (!isMobile() || !isSwiping) return;
+    function endSidebarSwipe() {
+      if (!isSwiping) return;
       isSwiping = false;
       sidebar.style.transition = '';
       sidebarBackdrop.style.transition = '';
@@ -568,6 +576,20 @@ async function streamAssistantReply(bubble, fullText) {
         sidebar.style.transform = 'translateX(0)';
         sidebarBackdrop.style.opacity = '1';
       }
+    }
+
+    sidebar.addEventListener('touchend', function(e) {
+      if (!isMobile()) return;
+      endSidebarSwipe();
+    }, { passive: true });
+
+    // 스와이프 도중 시스템 알림/전화 등으로 제스처가 중간에 끊기면 touchend가 아예
+    // 안 올 수 있다. 그러면 isSwiping이 계속 true로 남고 transition이 'none'인 채
+    // 멈춰서, 다음에 사이드바를 열어도 배경만 어두워지고 패널은 안 움직이는 것처럼
+    // 보일 수 있었다. touchcancel에서도 같은 마무리 처리를 해준다.
+    sidebar.addEventListener('touchcancel', function(e) {
+      if (!isMobile()) return;
+      endSidebarSwipe();
     }, { passive: true });
 
     chatInput.addEventListener('input', function() {
