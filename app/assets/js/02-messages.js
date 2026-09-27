@@ -414,6 +414,44 @@ let userMessageMenuTarget = null;
       });
     }
 
+    // 보낸 메시지 말풍선 위에 붙는, 그때 첨부했던 파일들의 미리보기(읽기 전용).
+    function createMessageFilesRow(files) {
+      const row = document.createElement('div');
+      row.className = 'msg-attach-row';
+      (files || []).forEach((f) => {
+        if (f.kind === 'image') {
+          const box = document.createElement('div');
+          box.className = 'msg-attach-image';
+          if (f.previewUrl) {
+            const img = document.createElement('img');
+            img.src = f.previewUrl;
+            img.alt = f.filename || '';
+            box.appendChild(img);
+          } else {
+            // previewUrl은 blob: URL이라 새로고침 후에는 없다 - 아이콘으로 대체
+            const fallback = document.createElement('div');
+            fallback.className = 'msg-attach-fallback';
+            const icon = document.createElement('iconify-icon');
+            icon.setAttribute('icon', iconNameMap('image'));
+            fallback.appendChild(icon);
+            box.appendChild(fallback);
+          }
+          row.appendChild(box);
+        } else {
+          const chip = document.createElement('div');
+          chip.className = 'msg-attach-file';
+          const icon = document.createElement('iconify-icon');
+          icon.setAttribute('icon', iconNameMap('file'));
+          const span = document.createElement('span');
+          span.textContent = f.filename || '파일';
+          chip.appendChild(icon);
+          chip.appendChild(span);
+          row.appendChild(chip);
+        }
+      });
+      return row;
+    }
+
     function createToolFileResultsRow(editedFiles) {
       const row = document.createElement('div');
       row.className = 'tool-file-results';
@@ -527,7 +565,9 @@ let userMessageMenuTarget = null;
     }
 
     function clearAttachedFiles() {
-      attachedFiles.forEach((f) => { if (f.previewUrl) URL.revokeObjectURL(f.previewUrl); });
+      // previewUrl(blob:)은 여기서 해제하지 않는다 - 메시지를 보내는 흐름에서는
+      // 그 미리보기를 보낸 말풍선이 그대로 이어받아 계속 보여줘야 하기 때문이다.
+      // (직접 X를 눌러 하나씩 지울 때는 removeAttachedFile이 그때 바로 해제한다.)
       attachedFiles = [];
       renderAttachChips();
     }
