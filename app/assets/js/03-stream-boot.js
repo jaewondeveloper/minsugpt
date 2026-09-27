@@ -523,23 +523,26 @@ async function streamAssistantReply(bubble, fullText) {
     chatInput.addEventListener('input', function() {
       if (this.value.trim().length > 0) {
         sendBtn.disabled = false;
-        sendBtn.classList.remove('bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
-        sendBtn.classList.add('send-btn-gradient', 'text-white', 'cursor-pointer', 'shadow-sm');
+        sendBtn.classList.remove('w-0', 'min-w-0', 'px-0', 'ml-0', 'opacity-0', 'pointer-events-none', 'bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
+        sendBtn.classList.add('min-w-[54px]', 'px-4', 'ml-1.5', 'opacity-100', 'send-btn-gradient', 'text-white', 'cursor-pointer');
       } else {
         sendBtn.disabled = true;
-        sendBtn.classList.remove('send-btn-gradient', 'text-white', 'cursor-pointer', 'shadow-sm');
-        sendBtn.classList.add('bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
+        sendBtn.classList.remove('min-w-[54px]', 'px-4', 'ml-1.5', 'opacity-100', 'send-btn-gradient', 'text-white', 'cursor-pointer');
+        sendBtn.classList.add('w-0', 'min-w-0', 'px-0', 'ml-0', 'opacity-0', 'pointer-events-none', 'bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
       }
 
-      this.style.height = '24px'; 
+      this.style.height = '24px';
       let nextHeight = this.scrollHeight;
       this.style.height = (this.value === '') ? '24px' : nextHeight + 'px';
     });
 
     sendBtn.addEventListener('click', () => sendMessage());
 
+    // 모바일(가상 키보드)에서는 Enter가 항상 줄바꿈이고, 전송은 버튼으로만 한다.
+    // 데스크탑은 기존과 동일하게 Enter로 전송, Shift+Enter로 줄바꿈한다.
     chatInput.addEventListener('keydown', function(e) {
       if (e.key === 'Enter' && !e.shiftKey) {
+        if (isMobile() || e.isComposing) return;
         e.preventDefault();
         if (this.value.trim().length > 0) sendMessage();
       }
