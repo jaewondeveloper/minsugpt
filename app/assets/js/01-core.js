@@ -631,7 +631,7 @@ function iconNameMap(name) {
 
     function normalizeHistoryMessage(m) {
       if (m.role === 'assistant') return normalizeAssistantMessage(m);
-      return { role: 'user', content: m.content || '' };
+      return { role: 'user', content: m.content || '', files: Array.isArray(m.files) ? m.files : [] };
     }
 
     function assistantActiveContent(m) {
@@ -662,7 +662,12 @@ function iconNameMap(name) {
             editedFiles: norm.editedFiles
           };
         }
-        return { role: 'user', content: m.content };
+        // previewUrl은 이 브라우저 탭에서만 유효한 blob: URL이라 저장하지 않는다
+        // (새로고침 후에는 파일 종류 아이콘으로 대체 표시된다).
+        const files = (Array.isArray(m.files) ? m.files : []).map((f) => ({
+          file_id: f.file_id, filename: f.filename, kind: f.kind, size_bytes: f.size_bytes
+        }));
+        return { role: 'user', content: m.content, files };
       });
     }
 
@@ -1393,7 +1398,7 @@ function iconNameMap(name) {
       chatMessages.innerHTML = '';
       chatHistory.forEach((m, i) => {
         if (m.role === 'user') {
-          appendMessage('user', m.content, { historyIndex: i });
+          appendMessage('user', m.content, { historyIndex: i, files: m.files });
           return;
         }
         const norm = normalizeAssistantMessage(m);

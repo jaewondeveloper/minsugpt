@@ -89,6 +89,7 @@ async function streamAssistantReply(bubble, fullText) {
         wrap.classList.add('user-msg-wrap');
         bubble.className = 'msg-user text-[14px] leading-relaxed';
         bubble.textContent = content;
+        if (!content) bubble.style.display = 'none'; // 텍스트 없이 파일만 보낸 경우 빈 말풍선을 감춘다
       } else {
         wrap.classList.add('assistant-msg-wrap');
         bubble.className = 'msg-assistant text-[14px] leading-relaxed';
@@ -100,6 +101,9 @@ async function streamAssistantReply(bubble, fullText) {
       }
       if (role === 'assistant' && opts.toolLog && opts.toolLog.length) {
         wrap.appendChild(createToolLogButton(opts.toolLog));
+      }
+      if (role === 'user' && opts.files && opts.files.length) {
+        wrap.appendChild(createMessageFilesRow(opts.files));
       }
       wrap.appendChild(bubble);
       if (role === 'user') {
@@ -237,14 +241,27 @@ async function streamAssistantReply(bubble, fullText) {
       hideError();
       ensureSession(text);
       showChatLayout();
-      const userResult = appendMessage('user', text);
+
+      // 첨부/토글은 메시지 하나당 한 번만 쓴다 - 지금 붙어있는 첨부 파일을 먼저
+      // 그대로 떼어내서(스냅샷) 말풍선 미리보기와 요청 본문에 함께 쓰고,
+      // 입력 UI는 바로 원래 상태로 되돌린다(칩 비우기, 토글 끄기).
+      const attachedFilesSnapshot = attachedFiles.slice();
+      const requestFileIds = attachedFilesSnapshot.map((f) => f.file_id);
+      const requestReasoningEffort = reasoningEffortOn ? 'high' : null;
+      const requestForceSearch = searchOn;
+      clearAttachedFiles();
+      setReasoningEffort(false);
+      setSearchOn(false);
+      closeAttachPanel();
+
+      const userResult = appendMessage('user', text, { files: attachedFilesSnapshot });
       const userWrap = userResult.wrap;
 
       // 응답을 기다리지 않고 사용자 메시지를 먼저 기록/저장한다.
       // → 서버는 이 시점 이후 백그라운드에서 계속 답을 생성하므로,
       //   중간에 페이지를 나가도 최소한 보낸 메시지는 항상 남아있다.
       const historyBeforeThis = historyForApi();
-      chatHistory.push({ role: 'user', content: text });
+      chatHistory.push({ role: 'user', content: text, files: attachedFilesSnapshot });
       userWrap._historyIndex = chatHistory.length - 1;
       persistCurrentSession();
 
@@ -260,16 +277,6 @@ async function streamAssistantReply(bubble, fullText) {
         chatInput.value = '';
         chatInput.style.height = '24px';
       }
-
-      // 첨부/토글은 메시지 하나당 한 번만 쓴다 - 요청 본문에 넣을 값을 먼저 떼어내고
-      // UI는 바로 원래 상태로 되돌린다(칩 비우기, 토글 끄기).
-      const requestFileIds = attachedFiles.map((f) => f.file_id);
-      const requestReasoningEffort = reasoningEffortOn ? 'high' : null;
-      const requestForceSearch = searchOn;
-      clearAttachedFiles();
-      setReasoningEffort(false);
-      setSearchOn(false);
-      closeAttachPanel();
 
       setSendLoading(true);
       const controller = new AbortController();

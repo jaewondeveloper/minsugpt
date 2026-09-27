@@ -238,6 +238,61 @@
     }
     .attach-chip-remove iconify-icon { font-size: 11px; }
 
+    /* ── 보낸 메시지 말풍선 위에 붙는 첨부 파일 미리보기(읽기 전용) ── */
+    .msg-attach-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 6px;
+      margin-bottom: 6px;
+      max-width: 85%;
+      margin-left: auto;
+    }
+    .msg-attach-image {
+      width: 84px;
+      height: 84px;
+      min-width: 84px;
+      border-radius: 18px;
+      overflow: hidden;
+      background: #e8f0fe;
+      flex-shrink: 0;
+    }
+    .msg-attach-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .msg-attach-fallback {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #6d9eef;
+      font-size: 26px;
+    }
+    .msg-attach-file {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      height: 36px;
+      padding: 0 12px;
+      border-radius: 9999px;
+      background: #e8f0fe;
+      color: #1a4d8f;
+      font-size: 12px;
+      font-weight: 500;
+      flex-shrink: 0;
+      max-width: 200px;
+    }
+    .msg-attach-file span {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 150px;
+    }
+
     /* ── 첨부 패널: + 버튼을 누르면 입력창 위로 펼쳐지는 영역 ── */
     .attach-panel.hidden { display: none; }
     .attach-panel {
@@ -2589,7 +2644,7 @@
 
     function normalizeHistoryMessage(m) {
       if (m.role === 'assistant') return normalizeAssistantMessage(m);
-      return { role: 'user', content: m.content || '' };
+      return { role: 'user', content: m.content || '', files: Array.isArray(m.files) ? m.files : [] };
     }
 
     function assistantActiveContent(m) {
@@ -2620,7 +2675,12 @@
             editedFiles: norm.editedFiles
           };
         }
-        return { role: 'user', content: m.content };
+        // previewUrl은 이 브라우저 탭에서만 유효한 blob: URL이라 저장하지 않는다
+        // (새로고침 후에는 파일 종류 아이콘으로 대체 표시된다).
+        const files = (Array.isArray(m.files) ? m.files : []).map((f) => ({
+          file_id: f.file_id, filename: f.filename, kind: f.kind, size_bytes: f.size_bytes
+        }));
+        return { role: 'user', content: m.content, files };
       });
     }
 
@@ -3351,7 +3411,7 @@
       chatMessages.innerHTML = '';
       chatHistory.forEach((m, i) => {
         if (m.role === 'user') {
-          appendMessage('user', m.content, { historyIndex: i });
+          appendMessage('user', m.content, { historyIndex: i, files: m.files });
           return;
         }
         const norm = normalizeAssistantMessage(m);
@@ -3784,6 +3844,44 @@
       });
     }
 
+    // 보낸 메시지 말풍선 위에 붙는, 그때 첨부했던 파일들의 미리보기(읽기 전용).
+    function createMessageFilesRow(files) {
+      const row = document.createElement('div');
+      row.className = 'msg-attach-row';
+      (files || []).forEach((f) => {
+        if (f.kind === 'image') {
+          const box = document.createElement('div');
+          box.className = 'msg-attach-image';
+          if (f.previewUrl) {
+            const img = document.createElement('img');
+            img.src = f.previewUrl;
+            img.alt = f.filename || '';
+            box.appendChild(img);
+          } else {
+            // previewUrl은 blob: URL이라 새로고침 후에는 없다 - 아이콘으로 대체
+            const fallback = document.createElement('div');
+            fallback.className = 'msg-attach-fallback';
+            const icon = document.createElement('iconify-icon');
+            icon.setAttribute('icon', iconNameMap('image'));
+            fallback.appendChild(icon);
+            box.appendChild(fallback);
+          }
+          row.appendChild(box);
+        } else {
+          const chip = document.createElement('div');
+          chip.className = 'msg-attach-file';
+          const icon = document.createElement('iconify-icon');
+          icon.setAttribute('icon', iconNameMap('file'));
+          const span = document.createElement('span');
+          span.textContent = f.filename || '파일';
+          chip.appendChild(icon);
+          chip.appendChild(span);
+          row.appendChild(chip);
+        }
+      });
+      return row;
+    }
+
     function createToolFileResultsRow(editedFiles) {
       const row = document.createElement('div');
       row.className = 'tool-file-results';
@@ -3897,7 +3995,9 @@
     }
 
     function clearAttachedFiles() {
-      attachedFiles.forEach((f) => { if (f.previewUrl) URL.revokeObjectURL(f.previewUrl); });
+      // previewUrl(blob:)은 여기서 해제하지 않는다 - 메시지를 보내는 흐름에서는
+      // 그 미리보기를 보낸 말풍선이 그대로 이어받아 계속 보여줘야 하기 때문이다.
+      // (직접 X를 눌러 하나씩 지울 때는 removeAttachedFile이 그때 바로 해제한다.)
       attachedFiles = [];
       renderAttachChips();
     }
@@ -4437,6 +4537,7 @@
         wrap.classList.add('user-msg-wrap');
         bubble.className = 'msg-user text-[14px] leading-relaxed';
         bubble.textContent = content;
+        if (!content) bubble.style.display = 'none'; // 텍스트 없이 파일만 보낸 경우 빈 말풍선을 감춘다
       } else {
         wrap.classList.add('assistant-msg-wrap');
         bubble.className = 'msg-assistant text-[14px] leading-relaxed';
@@ -4448,6 +4549,9 @@
       }
       if (role === 'assistant' && opts.toolLog && opts.toolLog.length) {
         wrap.appendChild(createToolLogButton(opts.toolLog));
+      }
+      if (role === 'user' && opts.files && opts.files.length) {
+        wrap.appendChild(createMessageFilesRow(opts.files));
       }
       wrap.appendChild(bubble);
       if (role === 'user') {
@@ -4585,14 +4689,27 @@
       hideError();
       ensureSession(text);
       showChatLayout();
-      const userResult = appendMessage('user', text);
+
+      // 첨부/토글은 메시지 하나당 한 번만 쓴다 - 지금 붙어있는 첨부 파일을 먼저
+      // 그대로 떼어내서(스냅샷) 말풍선 미리보기와 요청 본문에 함께 쓰고,
+      // 입력 UI는 바로 원래 상태로 되돌린다(칩 비우기, 토글 끄기).
+      const attachedFilesSnapshot = attachedFiles.slice();
+      const requestFileIds = attachedFilesSnapshot.map((f) => f.file_id);
+      const requestReasoningEffort = reasoningEffortOn ? 'high' : null;
+      const requestForceSearch = searchOn;
+      clearAttachedFiles();
+      setReasoningEffort(false);
+      setSearchOn(false);
+      closeAttachPanel();
+
+      const userResult = appendMessage('user', text, { files: attachedFilesSnapshot });
       const userWrap = userResult.wrap;
 
       // 응답을 기다리지 않고 사용자 메시지를 먼저 기록/저장한다.
       // → 서버는 이 시점 이후 백그라운드에서 계속 답을 생성하므로,
       //   중간에 페이지를 나가도 최소한 보낸 메시지는 항상 남아있다.
       const historyBeforeThis = historyForApi();
-      chatHistory.push({ role: 'user', content: text });
+      chatHistory.push({ role: 'user', content: text, files: attachedFilesSnapshot });
       userWrap._historyIndex = chatHistory.length - 1;
       persistCurrentSession();
 
@@ -4608,16 +4725,6 @@
         chatInput.value = '';
         chatInput.style.height = '24px';
       }
-
-      // 첨부/토글은 메시지 하나당 한 번만 쓴다 - 요청 본문에 넣을 값을 먼저 떼어내고
-      // UI는 바로 원래 상태로 되돌린다(칩 비우기, 토글 끄기).
-      const requestFileIds = attachedFiles.map((f) => f.file_id);
-      const requestReasoningEffort = reasoningEffortOn ? 'high' : null;
-      const requestForceSearch = searchOn;
-      clearAttachedFiles();
-      setReasoningEffort(false);
-      setSearchOn(false);
-      closeAttachPanel();
 
       setSendLoading(true);
       const controller = new AbortController();
