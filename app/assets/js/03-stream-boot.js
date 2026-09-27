@@ -98,6 +98,9 @@ async function streamAssistantReply(bubble, fullText) {
           : versions.length - 1;
         setAssistantHtml(bubble, versions[versionIndex] || content);
       }
+      if (role === 'assistant' && opts.toolLog && opts.toolLog.length) {
+        wrap.appendChild(createToolLogButton(opts.toolLog));
+      }
       wrap.appendChild(bubble);
       if (role === 'user') {
         attachUserActions(wrap, bubble);
@@ -106,6 +109,9 @@ async function streamAssistantReply(bubble, fullText) {
         attachAssistantActions(wrap, bubble, opts.sourceUserText || '');
         if (opts.deferActions) wrap.classList.add('actions-pending');
         else wrap.classList.add('actions-ready');
+        if (opts.editedFiles && opts.editedFiles.length) {
+          wrap.appendChild(createToolFileResultsRow(opts.editedFiles));
+        }
       }
       chatMessages.appendChild(wrap);
       scrollChatToBottom();
@@ -254,6 +260,17 @@ async function streamAssistantReply(bubble, fullText) {
         chatInput.value = '';
         chatInput.style.height = '24px';
       }
+
+      // 첨부/토글은 메시지 하나당 한 번만 쓴다 - 요청 본문에 넣을 값을 먼저 떼어내고
+      // UI는 바로 원래 상태로 되돌린다(칩 비우기, 토글 끄기).
+      const requestFileIds = attachedFiles.map((f) => f.file_id);
+      const requestReasoningEffort = reasoningEffortOn ? 'high' : null;
+      const requestForceSearch = searchOn;
+      clearAttachedFiles();
+      setReasoningEffort(false);
+      setSearchOn(false);
+      closeAttachPanel();
+
       setSendLoading(true);
       const controller = new AbortController();
       activeAbortController = controller;
@@ -267,22 +284,29 @@ async function streamAssistantReply(bubble, fullText) {
       const assistantWrap = assistantResult.wrap;
       const bubble = assistantResult.bubble;
       const stopDots = mountTypingLoader(bubble);
+      const toolTracker = createLiveToolTracker(assistantWrap);
       scrollChatToBottom();
+
+      const requestBody = {
+        message: text,
+        messages: historyBeforeThis,
+        session_id: sessionIdForRequest,
+        system_prompt: AI_SYSTEM_PROMPT
+      };
+      if (requestFileIds.length) requestBody.file_ids = requestFileIds;
+      if (requestReasoningEffort) requestBody.reasoning_effort = requestReasoningEffort;
+      if (requestForceSearch) requestBody.force_search = true;
 
       let accumulated = '';
       let gotFirstToken = false;
 
       try {
         await requestAiChatStream(
+          requestBody,
           {
-            message: text,
-            messages: historyBeforeThis,
-            session_id: sessionIdForRequest,
-            system_prompt: AI_SYSTEM_PROMPT
-          },
-          {
+            onTool: (payload) => toolTracker.addEvent(payload),
             onToken: (chunk) => {
-              if (!gotFirstToken) { stopDots(); gotFirstToken = true; }
+              if (!gotFirstToken) { stopDots(); toolTracker.markStreaming(); gotFirstToken = true; }
               accumulated += chunk;
               if (currentSessionId === sessionIdForRequest) {
                 setAssistantHtml(bubble, accumulated);
@@ -292,8 +316,14 @@ async function streamAssistantReply(bubble, fullText) {
               const finalText = accumulated.trim() || '죄송해요, 응답을 생성하지 못했어요.';
               if (currentSessionId === sessionIdForRequest) {
                 setAssistantHtml(bubble, finalText);
-                chatHistory.push({ role: 'assistant', versions: [finalText], versionIndex: 0 });
+                chatHistory.push({
+                  role: 'assistant', versions: [finalText], versionIndex: 0,
+                  toolLog: toolTracker.getLog(), editedFiles: toolTracker.getEditedFiles()
+                });
                 assistantWrap._historyIndex = chatHistory.length - 1;
+                if (toolTracker.getEditedFiles().length) {
+                  assistantWrap.appendChild(createToolFileResultsRow(toolTracker.getEditedFiles()));
+                }
                 finalizeAssistantWrap(assistantWrap);
                 triggerGradientWave();
                 persistCurrentSession();
@@ -309,7 +339,10 @@ async function streamAssistantReply(bubble, fullText) {
                 const finalText = accumulated.trim();
                 if (finalText) {
                   setAssistantHtml(bubble, finalText);
-                  chatHistory.push({ role: 'assistant', versions: [finalText], versionIndex: 0 });
+                  chatHistory.push({
+                    role: 'assistant', versions: [finalText], versionIndex: 0,
+                    toolLog: toolTracker.getLog(), editedFiles: toolTracker.getEditedFiles()
+                  });
                   assistantWrap._historyIndex = chatHistory.length - 1;
                   finalizeAssistantWrap(assistantWrap);
                   persistCurrentSession();

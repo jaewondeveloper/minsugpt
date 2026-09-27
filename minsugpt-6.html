@@ -164,6 +164,353 @@
                   transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
 
+    /* ── 첨부 파일 칩 (입력창 위, 가로 스크롤만 되고 둥근 입력창 밖으로 삐져나가지 않음) ── */
+    .attach-chip-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      flex-wrap: nowrap;
+      padding: 4px 2px 8px;
+      margin: 0 1px;
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    .attach-chip-row::-webkit-scrollbar { display: none; }
+    .attach-chip-row.hidden { display: none; }
+    .attach-chip-image {
+      position: relative;
+      width: 64px;
+      height: 64px;
+      min-width: 64px;
+      border-radius: 16px;
+      overflow: hidden;
+      background: #f0f4f9;
+      flex-shrink: 0;
+    }
+    .attach-chip-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .attach-chip-file {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      height: 40px;
+      padding: 0 10px 0 8px;
+      border-radius: 14px;
+      background: #f0f4f9;
+      flex-shrink: 0;
+      max-width: 160px;
+    }
+    .attach-chip-file span {
+      font-size: 11.5px;
+      color: #374151;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 92px;
+    }
+    .attach-chip-remove {
+      position: absolute;
+      top: 3px;
+      right: 3px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.55);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .attach-chip-file .attach-chip-remove {
+      position: static;
+      width: 16px;
+      height: 16px;
+      background: rgba(0, 0, 0, 0.12);
+      color: #6b7280;
+    }
+    .attach-chip-remove iconify-icon { font-size: 11px; }
+
+    /* ── 첨부 패널: + 버튼을 누르면 입력창 위로 펼쳐지는 영역 ── */
+    .attach-panel.hidden { display: none; }
+    .attach-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 4px 2px 10px;
+      animation: attachPanelIn 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    @keyframes attachPanelIn {
+      from { opacity: 0; transform: translateY(-6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .attach-panel-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .attach-square-btn {
+      aspect-ratio: 1 / 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      border-radius: 18px;
+      background: #f0f4f9;
+      color: #374151;
+      font-size: 11.5px;
+      font-weight: 500;
+      transition: background-color 0.15s ease, transform 0.15s ease;
+    }
+    .attach-square-btn:active {
+      transform: scale(0.95);
+      background: #e4eaf3;
+    }
+    .attach-square-btn iconify-icon {
+      font-size: 22px;
+      color: #4b5563;
+    }
+    .attach-toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      height: 40px;
+      padding: 0 14px;
+      border-radius: 14px;
+      background: #f0f4f9;
+      color: #374151;
+      font-size: 13px;
+      font-weight: 500;
+      transition: background-color 0.18s ease, color 0.18s ease;
+    }
+    .attach-toggle-row.active {
+      background: #fdf0d5;
+      color: #92640a;
+    }
+    .attach-toggle-row#toggle-search.active {
+      background: #dbeeff;
+      color: #1d5f99;
+    }
+    .attach-panel-close-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      width: 100%;
+      height: 32px;
+      color: #9ca3af;
+      font-size: 12px;
+      margin-top: 2px;
+    }
+    .attach-panel-close-btn iconify-icon { transform: rotate(180deg); }
+
+    /* + 버튼 옆에 표시되는, 지금 켜져 있는 토글 아이콘들 */
+    .active-toggle-icons {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      margin-left: 4px;
+    }
+    .active-toggle-icons.hidden { display: none; }
+    .active-toggle-icons .active-toggle-icon {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+    }
+    .active-toggle-icons .active-toggle-icon.reasoning {
+      background: #fdf0d5;
+      color: #92640a;
+    }
+    .active-toggle-icons .active-toggle-icon.search {
+      background: #dbeeff;
+      color: #1d5f99;
+    }
+
+    .hidden-file-input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* ── 작업 내역(도구 사용) 표시: 답변 위에 붙는 버튼/실시간 상태 ── */
+    .tool-log-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      max-width: 100%;
+      height: 26px;
+      padding: 0 10px;
+      margin-bottom: 6px;
+      border-radius: 9999px;
+      background: #f0f4f9;
+      color: #4b5563;
+      font-size: 11.5px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.15s ease;
+    }
+    .tool-log-btn:hover { background: #e4eaf3; }
+    .tool-log-btn iconify-icon { font-size: 13px; flex-shrink: 0; }
+    .tool-log-btn .tool-log-btn-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 260px;
+    }
+    /* 실시간으로 최신 작업 설명이 바뀔 때 부드럽게 전환 */
+    .tool-log-btn .tool-log-btn-text.swap {
+      animation: toolTextSwap 0.28s ease;
+    }
+    @keyframes toolTextSwap {
+      0% { opacity: 0; transform: translateY(3px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+    .tool-log-btn.is-live { background: #eef2ff; color: #4338ca; }
+    .tool-log-btn.is-live iconify-icon { color: #6366f1; }
+
+    .tool-log-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 15000;
+      background: rgba(15, 23, 42, 0.35);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+    .tool-log-backdrop.show {
+      display: flex;
+      opacity: 1;
+    }
+    .tool-log-sheet {
+      width: min(420px, 92vw);
+      max-height: min(70vh, 560px);
+      display: flex;
+      flex-direction: column;
+      border-radius: 20px;
+      border: 1px solid #e5e7eb;
+      background: #fff;
+      box-shadow: 0 18px 48px rgba(15, 23, 42, 0.22);
+      padding: 14px 16px 16px;
+      transform: translateY(10px) scale(0.97);
+      transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+      overflow: hidden;
+    }
+    .tool-log-backdrop.show .tool-log-sheet {
+      transform: translateY(0) scale(1);
+    }
+    .tool-log-handle { display: none; }
+    .tool-log-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      flex-shrink: 0;
+    }
+    .tool-log-list {
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding-right: 2px;
+    }
+    .tool-log-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .tool-log-item-icon {
+      width: 28px;
+      height: 28px;
+      min-width: 28px;
+      border-radius: 9999px;
+      background: #f0f4f9;
+      color: #4b5563;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+    .tool-log-item-body p:first-child {
+      font-size: 13px;
+      color: #1f2937;
+      font-weight: 500;
+    }
+    .tool-log-item-body p:last-child {
+      font-size: 11.5px;
+      color: #9ca3af;
+      margin-top: 1px;
+    }
+    /* 모바일: 아래에서 올라오는 시트 형태 */
+    @media (max-width: 767px) {
+      .tool-log-backdrop {
+        align-items: flex-end;
+        padding: 0;
+      }
+      .tool-log-sheet {
+        width: 100%;
+        max-width: 100%;
+        max-height: 78vh;
+        border-radius: 20px 20px 0 0;
+        padding: 10px 16px calc(16px + env(safe-area-inset-bottom));
+        transform: translateY(100%);
+        transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      .tool-log-backdrop.show .tool-log-sheet {
+        transform: translateY(0);
+      }
+      .tool-log-handle {
+        display: block;
+        width: 36px;
+        height: 4px;
+        border-radius: 9999px;
+        background: #e5e7eb;
+        margin: 4px auto 10px;
+        flex-shrink: 0;
+      }
+    }
+
+    /* 답변 아래에 붙는 '수정된 파일 다운로드' 버튼 */
+    .tool-file-results {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+      width: 100%;
+    }
+    .tool-file-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 30px;
+      padding: 0 12px;
+      border-radius: 9999px;
+      background: #f0f4f9;
+      color: #374151;
+      font-size: 12px;
+      font-weight: 500;
+      transition: background-color 0.15s ease;
+    }
+    .tool-file-btn:hover { background: #e4eaf3; }
+    .tool-file-btn iconify-icon { font-size: 13px; }
+
     /* AI 말풍선에 스트리밍으로 표시되는 오류 메시지 톤 */
     .msg-assistant-error {
       color: #c0392b !important;
@@ -1411,27 +1758,65 @@
     <div id="chat-error" class="chat-column hidden mb-2 px-3 py-2 text-[13px] text-red-600 bg-red-50 border border-red-100 rounded-xl w-full max-w-[40rem]"></div>
 
     <div id="input-box" class="chat-column bg-white rounded-[24px] shadow-sm border border-gray-200/90 p-2.5 pb-2 flex flex-col justify-between min-h-[92px] transition-all duration-200 focus-within:shadow-md shrink-0 mb-3 w-full max-w-[40rem]">
-      
+
+      <div id="attach-chip-row" class="attach-chip-row hidden"></div>
+
+      <div id="attach-panel" class="attach-panel hidden">
+        <div class="attach-panel-grid">
+          <button type="button" id="attach-pick-photo" class="attach-square-btn">
+            <i data-lucide="image" class="w-5 h-5"></i>
+            <span>사진</span>
+          </button>
+          <button type="button" id="attach-pick-file" class="attach-square-btn">
+            <i data-lucide="file" class="w-5 h-5"></i>
+            <span>파일</span>
+          </button>
+          <button type="button" id="attach-pick-camera" class="attach-square-btn">
+            <i data-lucide="camera" class="w-5 h-5"></i>
+            <span>카메라</span>
+          </button>
+        </div>
+        <button type="button" id="toggle-reasoning" class="attach-toggle-row">
+          <i data-lucide="brain" class="w-4 h-4"></i>
+          <span>생각 더 하기</span>
+        </button>
+        <button type="button" id="toggle-search" class="attach-toggle-row">
+          <i data-lucide="search" class="w-4 h-4"></i>
+          <span>검색</span>
+        </button>
+        <button type="button" id="attach-panel-close" class="attach-panel-close-btn">
+          <i data-lucide="chevron-down" class="w-4 h-4"></i>
+          <span>닫기</span>
+        </button>
+      </div>
+
+      <input type="file" id="attach-file-photo" accept="image/*" class="hidden-file-input">
+      <input type="file" id="attach-file-generic" class="hidden-file-input">
+      <input type="file" id="attach-file-camera" accept="image/*" capture="environment" class="hidden-file-input">
+
       <div class="w-full mb-1 flex items-center mt-1">
-        <textarea 
+        <textarea
           id="chat-input"
           rows="1"
-          placeholder="MinsuGPT 에게 물어보기" 
+          placeholder="MinsuGPT 에게 물어보기"
           class="w-full bg-transparent outline-none text-gray-800 placeholder-gray-400 text-[14px] px-1.5 font-normal resize-none h-6 block max-h-36 align-middle"
         ></textarea>
       </div>
-      
+
       <div class="flex items-center justify-between pt-1">
-        <button class="ripple-btn text-gray-500 hover:bg-gray-100 w-9 h-9 min-w-[36px] min-h-[36px] rounded-full flex items-center justify-center transition-colors">
-          <i data-lucide="plus" class="w-4 h-4 text-gray-500"></i>
-        </button>
-        
+        <div class="flex items-center">
+          <button id="attach-btn" type="button" class="ripple-btn text-gray-500 hover:bg-gray-100 w-9 h-9 min-w-[36px] min-h-[36px] rounded-full flex items-center justify-center transition-colors">
+            <i data-lucide="plus" class="w-4 h-4 text-gray-500"></i>
+          </button>
+          <div id="active-toggle-icons" class="active-toggle-icons hidden"></div>
+        </div>
+
         <div class="flex items-center space-x-1.5">
           <div class="ripple-btn flex items-center space-x-1 cursor-pointer text-gray-500 hover:bg-gray-50 px-2.5 py-1.5 rounded-lg text-xs font-medium">
             <span>사고 모델</span>
             <i data-lucide="chevron-down" class="w-3 h-3"></i>
           </div>
-          
+
           <button
             id="send-btn"
             disabled
@@ -1511,6 +1896,20 @@
     </div>
   </div>
 
+  <!-- 작업 내역(도구 사용 로그) 모달 - 데스크탑은 가운데, 모바일은 아래에서 올라오는 시트 -->
+  <div id="tool-log-modal" class="tool-log-backdrop">
+    <div class="tool-log-sheet">
+      <div class="tool-log-handle"></div>
+      <div class="tool-log-header">
+        <h3 class="text-[14px] font-medium text-gray-800">작업 내역</h3>
+        <button id="tool-log-close" type="button" class="ripple-btn w-8 h-8 rounded-full hover:bg-gray-100 text-gray-500 flex items-center justify-center">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div id="tool-log-list" class="tool-log-list"></div>
+    </div>
+  </div>
+
   <script>
     function iconNameMap(name) {
       const map = {
@@ -1537,7 +1936,19 @@
         'refresh-cw': 'tabler:refresh',
         'chevron-left': 'tabler:chevron-left',
         'chevron-right': 'tabler:chevron-right',
-        'logout-2': 'tabler:logout-2'
+        'logout-2': 'tabler:logout-2',
+        image: 'tabler:photo-filled',
+        file: 'tabler:file-filled',
+        camera: 'tabler:camera-filled',
+        brain: 'mdi:brain',
+        'list-check': 'mdi:format-list-checks',
+        download: 'tabler:download',
+        'code-tool': 'mdi:code-braces-box',
+        'web-tool': 'mdi:web',
+        'link-tool': 'mdi:link-variant',
+        'read-tool': 'mdi:file-eye-outline',
+        'edit-tool': 'mdi:file-edit-outline',
+        'get-tool': 'mdi:file-download-outline'
       };
       return map[name] || 'tabler:circle-filled';
     }
@@ -1625,6 +2036,11 @@
     let isSending = false;
     let isRegenerating = false;
     let activeAbortController = null; // 지금 스트리밍 중인 요청의 컨트롤러(정지 버튼용)
+
+    // ── 파일 첨부 / 생각 더 하기 / 검색 토글 상태 ──
+    let attachedFiles = []; // [{file_id, filename, kind, size_bytes, previewUrl}]
+    let reasoningEffortOn = false;
+    let searchOn = false;
     let loadingAnimStop = null;
 
     function loginPageUrl() {
@@ -1818,6 +2234,9 @@
       if (!payload || !payload.type) return;
       if (payload.type === 'meta' && handlers.onMeta) handlers.onMeta(payload.job_id);
       else if (payload.type === 'token' && handlers.onToken) handlers.onToken(payload.content || '');
+      else if (payload.type === 'tool' && handlers.onTool) {
+        handlers.onTool({ tool: payload.tool || '', detail: payload.detail || '', file_id: payload.file_id || null });
+      }
       else if (payload.type === 'done' && handlers.onDone) handlers.onDone();
       else if (payload.type === 'error' && handlers.onError) {
         handlers.onError(formatErrorDetail('AI 백엔드가 스트림 중 오류를 보냈습니다', [
@@ -2108,14 +2527,16 @@
 
     function normalizeAssistantMessage(m) {
       if (m.role !== 'assistant') return m;
+      const toolLog = Array.isArray(m.toolLog) ? m.toolLog : [];
+      const editedFiles = Array.isArray(m.editedFiles) ? m.editedFiles : [];
       if (m.versions && m.versions.length) {
         const versionIndex = typeof m.versionIndex === 'number'
           ? Math.max(0, Math.min(m.versionIndex, m.versions.length - 1))
           : m.versions.length - 1;
-        return { role: 'assistant', versions: m.versions.slice(), versionIndex };
+        return { role: 'assistant', versions: m.versions.slice(), versionIndex, toolLog, editedFiles };
       }
       const content = m.content || '';
-      return { role: 'assistant', versions: [content], versionIndex: 0 };
+      return { role: 'assistant', versions: [content], versionIndex: 0, toolLog, editedFiles };
     }
 
     function normalizeHistoryMessage(m) {
@@ -2146,7 +2567,9 @@
           return {
             role: 'assistant',
             versions: norm.versions,
-            versionIndex: norm.versionIndex
+            versionIndex: norm.versionIndex,
+            toolLog: norm.toolLog,
+            editedFiles: norm.editedFiles
           };
         }
         return { role: 'user', content: m.content };
@@ -2191,6 +2614,22 @@
     const chatInput = document.getElementById('chat-input');
     const sendBtn = document.getElementById('send-btn');
     const sendBtnIcon = sendBtn.querySelector('iconify-icon, [data-lucide]');
+    const attachBtn = document.getElementById('attach-btn');
+    const attachPanel = document.getElementById('attach-panel');
+    const attachChipRow = document.getElementById('attach-chip-row');
+    const activeToggleIcons = document.getElementById('active-toggle-icons');
+    const attachPanelClose = document.getElementById('attach-panel-close');
+    const attachPickPhoto = document.getElementById('attach-pick-photo');
+    const attachPickFile = document.getElementById('attach-pick-file');
+    const attachPickCamera = document.getElementById('attach-pick-camera');
+    const attachFilePhoto = document.getElementById('attach-file-photo');
+    const attachFileGeneric = document.getElementById('attach-file-generic');
+    const attachFileCamera = document.getElementById('attach-file-camera');
+    const toggleReasoningBtn = document.getElementById('toggle-reasoning');
+    const toggleSearchBtn = document.getElementById('toggle-search');
+    const toolLogModal = document.getElementById('tool-log-modal');
+    const toolLogList = document.getElementById('tool-log-list');
+    const toolLogClose = document.getElementById('tool-log-close');
     const mainPanel = document.getElementById('main-panel');
     const welcomeBlock = document.getElementById('welcome-block');
     const chatMessages = document.getElementById('chat-messages');
@@ -2873,7 +3312,9 @@
           historyIndex: i,
           versions: norm.versions,
           versionIndex: norm.versionIndex,
-          sourceUserText: prevUser
+          sourceUserText: prevUser,
+          toolLog: norm.toolLog,
+          editedFiles: norm.editedFiles
         });
       });
       updateUserActionVisibility();
@@ -3142,6 +3583,400 @@
       };
     }
 
+    // ══════════════════════════════════════════════════════════════
+    // 작업 내역(도구 사용 로그) - SSE "tool" 이벤트를 실시간으로 보여주고,
+    // 채팅 기록에 함께 저장해서 새로고침해도 남아있게 한다.
+    // ══════════════════════════════════════════════════════════════
+    const TOOL_PAST_LABELS = {
+      execute_python: '코드를 실행했습니다',
+      web_search: '웹을 검색했습니다',
+      fetch_page: '페이지를 가져왔습니다',
+      read_file: '파일을 읽었습니다',
+      edit_file: '파일을 수정했습니다',
+      get_file_content: '파일 내용을 가져왔습니다'
+    };
+    const TOOL_ICON_KEYS = {
+      execute_python: 'code-tool',
+      web_search: 'web-tool',
+      fetch_page: 'link-tool',
+      read_file: 'read-tool',
+      edit_file: 'edit-tool',
+      get_file_content: 'get-tool'
+    };
+
+    function toolPastLabel(evt) {
+      return TOOL_PAST_LABELS[evt.tool] || (evt.detail || '작업을 완료했습니다');
+    }
+
+    // detail 문구("파일 읽는 중: calc.py (12~40줄)")에서 파일명만 뽑아낸다.
+    function extractFilenameFromDetail(detail) {
+      if (!detail) return null;
+      const m = String(detail).match(/:\s*([^\s():,]+)/);
+      return m ? m[1] : null;
+    }
+
+    function collectEditedFiles(log) {
+      const map = new Map();
+      (log || []).forEach((evt) => {
+        if (evt.tool === 'edit_file' && evt.file_id) {
+          map.set(evt.file_id, { file_id: evt.file_id, filename: extractFilenameFromDetail(evt.detail) || evt.file_id });
+        }
+      });
+      return Array.from(map.values());
+    }
+
+    function setToolLogButtonLive(btn, live, detailText) {
+      if (!btn) return;
+      const text = btn.querySelector('.tool-log-btn-text');
+      btn.classList.toggle('is-live', !!live);
+      if (!text) return;
+      if (live && detailText) {
+        if (text.textContent !== detailText) {
+          text.textContent = detailText;
+          text.classList.remove('swap');
+          void text.offsetWidth; // 강제 리플로우 - 애니메이션이 처음부터 다시 재생되게
+          text.classList.add('swap');
+        }
+      } else if (!live) {
+        text.textContent = '작업 내역';
+        text.classList.remove('swap');
+      }
+    }
+
+    function createToolLogButton(log) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'tool-log-btn';
+      btn._toolLog = log;
+      const icon = document.createElement('iconify-icon');
+      icon.setAttribute('icon', iconNameMap('list-check'));
+      icon.setAttribute('aria-hidden', 'true');
+      const text = document.createElement('span');
+      text.className = 'tool-log-btn-text';
+      text.textContent = '작업 내역';
+      btn.appendChild(icon);
+      btn.appendChild(text);
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openToolLogModal(btn._toolLog);
+      });
+      return btn;
+    }
+
+    // 응답 하나를 생성하는 동안 들어오는 tool 이벤트를 모아서, 말풍선 위 버튼에
+    // 실시간으로 반영한다. 첫 토큰이 오면(markStreaming) 실시간 갱신은 멈추고
+    // 평범한 '작업 내역' 버튼으로 바뀐다.
+    function createLiveToolTracker(wrapEl) {
+      const log = [];
+      let btnEl = null;
+      let live = true;
+      function ensureBtn() {
+        if (!btnEl) {
+          btnEl = createToolLogButton(log);
+          wrapEl.insertBefore(btnEl, wrapEl.firstChild);
+        }
+        return btnEl;
+      }
+      return {
+        addEvent(evt) {
+          log.push(evt);
+          const btn = ensureBtn();
+          if (live) setToolLogButtonLive(btn, true, evt.detail || toolPastLabel(evt));
+        },
+        markStreaming() {
+          live = false;
+          if (btnEl) setToolLogButtonLive(btnEl, false);
+        },
+        getLog() { return log; },
+        getEditedFiles() { return collectEditedFiles(log); }
+      };
+    }
+
+    function openToolLogModal(log) {
+      if (!toolLogModal || !toolLogList) return;
+      toolLogList.innerHTML = '';
+      if (!log || !log.length) {
+        const empty = document.createElement('p');
+        empty.className = 'text-[12px] text-gray-400';
+        empty.textContent = '기록된 작업이 없습니다.';
+        toolLogList.appendChild(empty);
+      } else {
+        log.forEach((evt) => {
+          const item = document.createElement('div');
+          item.className = 'tool-log-item';
+          const iconWrap = document.createElement('div');
+          iconWrap.className = 'tool-log-item-icon';
+          const icon = document.createElement('iconify-icon');
+          icon.setAttribute('icon', iconNameMap(TOOL_ICON_KEYS[evt.tool] || 'list-check'));
+          iconWrap.appendChild(icon);
+          const body = document.createElement('div');
+          body.className = 'tool-log-item-body';
+          const p1 = document.createElement('p');
+          p1.textContent = toolPastLabel(evt); // 완료된 작업은 항상 과거형으로 표시
+          const p2 = document.createElement('p');
+          p2.textContent = evt.detail || '';
+          body.appendChild(p1);
+          body.appendChild(p2);
+          item.appendChild(iconWrap);
+          item.appendChild(body);
+          toolLogList.appendChild(item);
+        });
+      }
+      toolLogModal.classList.add('show');
+    }
+
+    function closeToolLogModal() {
+      if (toolLogModal) toolLogModal.classList.remove('show');
+    }
+
+    if (toolLogClose) toolLogClose.addEventListener('click', closeToolLogModal);
+    if (toolLogModal) {
+      toolLogModal.addEventListener('click', (e) => {
+        if (e.target === toolLogModal) closeToolLogModal();
+      });
+    }
+
+    function createToolFileResultsRow(editedFiles) {
+      const row = document.createElement('div');
+      row.className = 'tool-file-results';
+      (editedFiles || []).forEach((f) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'tool-file-btn';
+        const icon = document.createElement('iconify-icon');
+        icon.setAttribute('icon', iconNameMap('download'));
+        const label = document.createElement('span');
+        label.textContent = f.filename + ' 다운로드';
+        btn.appendChild(icon);
+        btn.appendChild(label);
+        btn.addEventListener('click', () => downloadEditedFile(f.file_id, f.filename));
+        row.appendChild(btn);
+      });
+      return row;
+    }
+
+    async function downloadEditedFile(fileId, filename) {
+      try {
+        const res = await fetch(API_BASE + '/api/file/' + encodeURIComponent(fileId), { headers: authHeaders() });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || ('파일을 가져오지 못했습니다 (HTTP ' + res.status + ')'));
+        }
+        const blob = new Blob([data.content || ''], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = data.filename || filename || 'download.txt';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+      } catch (err) {
+        console.error('[MinsuGPT][fileDownload]', err);
+        showError('파일을 다운로드하지 못했습니다: ' + (err.message || ''));
+        setTimeout(hideError, 2500);
+      }
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // 파일/이미지 첨부 업로드
+    // ══════════════════════════════════════════════════════════════
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const raw = String(reader.result || '');
+          const idx = raw.indexOf(',');
+          resolve(idx >= 0 ? raw.slice(idx + 1) : raw);
+        };
+        reader.onerror = () => reject(reader.error || new Error('파일을 읽지 못했습니다.'));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function renderAttachChips() {
+      if (!attachChipRow) return;
+      attachChipRow.innerHTML = '';
+      if (!attachedFiles.length) {
+        attachChipRow.classList.add('hidden');
+        return;
+      }
+      attachChipRow.classList.remove('hidden');
+      attachedFiles.forEach((f) => {
+        if (f.kind === 'image') {
+          const chip = document.createElement('div');
+          chip.className = 'attach-chip-image';
+          if (f.previewUrl) {
+            const img = document.createElement('img');
+            img.src = f.previewUrl;
+            img.alt = f.filename;
+            chip.appendChild(img);
+          }
+          const remove = document.createElement('div');
+          remove.className = 'attach-chip-remove';
+          const icon = document.createElement('iconify-icon');
+          icon.setAttribute('icon', iconNameMap('x'));
+          remove.appendChild(icon);
+          remove.addEventListener('click', () => removeAttachedFile(f.file_id));
+          chip.appendChild(remove);
+          attachChipRow.appendChild(chip);
+        } else {
+          const chip = document.createElement('div');
+          chip.className = 'attach-chip-file';
+          const icon = document.createElement('iconify-icon');
+          icon.setAttribute('icon', iconNameMap('file'));
+          const span = document.createElement('span');
+          span.textContent = f.filename;
+          const remove = document.createElement('div');
+          remove.className = 'attach-chip-remove';
+          const removeIcon = document.createElement('iconify-icon');
+          removeIcon.setAttribute('icon', iconNameMap('x'));
+          remove.appendChild(removeIcon);
+          remove.addEventListener('click', () => removeAttachedFile(f.file_id));
+          chip.appendChild(icon);
+          chip.appendChild(span);
+          chip.appendChild(remove);
+          attachChipRow.appendChild(chip);
+        }
+      });
+    }
+
+    function removeAttachedFile(fileId) {
+      const target = attachedFiles.find((f) => f.file_id === fileId);
+      if (target && target.previewUrl) URL.revokeObjectURL(target.previewUrl);
+      attachedFiles = attachedFiles.filter((f) => f.file_id !== fileId);
+      renderAttachChips();
+    }
+
+    function clearAttachedFiles() {
+      attachedFiles.forEach((f) => { if (f.previewUrl) URL.revokeObjectURL(f.previewUrl); });
+      attachedFiles = [];
+      renderAttachChips();
+    }
+
+    async function uploadPickedFile(file) {
+      if (!file) return;
+      if (!currentSessionId || !getSession(currentSessionId)) ensureSession('');
+      let base64;
+      try {
+        base64 = await fileToBase64(file);
+      } catch (err) {
+        showError('파일을 읽지 못했습니다: ' + (err.message || ''));
+        setTimeout(hideError, 2500);
+        return;
+      }
+      const url = API_BASE + '/api/upload';
+      let res;
+      try {
+        res = await fetch(url, {
+          method: 'POST',
+          headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+          body: JSON.stringify({
+            filename: file.name,
+            mime_type: file.type || 'application/octet-stream',
+            content_base64: base64,
+            session_id: currentSessionId
+          })
+        });
+      } catch (err) {
+        showError(describeNetworkError('파일 업로드에 실패했습니다', 'POST', url, err));
+        setTimeout(hideError, 3000);
+        return;
+      }
+      let data;
+      try { data = await res.json(); } catch { data = {}; }
+      if (!res.ok || !data.success) {
+        showError(data.error || ('파일 업로드에 실패했습니다 (HTTP ' + res.status + ')'));
+        setTimeout(hideError, 3000);
+        return;
+      }
+      const entry = {
+        file_id: data.file_id,
+        filename: data.filename || file.name,
+        kind: data.kind || (file.type && file.type.startsWith('image/') ? 'image' : 'text'),
+        size_bytes: data.size_bytes || file.size,
+        previewUrl: null
+      };
+      if (entry.kind === 'image') {
+        try { entry.previewUrl = URL.createObjectURL(file); } catch { /* 무시 */ }
+      }
+      attachedFiles.push(entry);
+      renderAttachChips();
+    }
+
+    async function handleFilePickInput(inputEl) {
+      const files = Array.from(inputEl.files || []);
+      inputEl.value = ''; // 같은 파일을 다시 선택해도 change 이벤트가 뜨도록
+      for (const file of files) {
+        await uploadPickedFile(file);
+      }
+    }
+
+    if (attachFilePhoto) attachFilePhoto.addEventListener('change', () => handleFilePickInput(attachFilePhoto));
+    if (attachFileGeneric) attachFileGeneric.addEventListener('change', () => handleFilePickInput(attachFileGeneric));
+    if (attachFileCamera) attachFileCamera.addEventListener('change', () => handleFilePickInput(attachFileCamera));
+
+    // ══════════════════════════════════════════════════════════════
+    // 첨부 패널(+ 버튼) / 생각 더 하기 / 검색 토글
+    // ══════════════════════════════════════════════════════════════
+    function isAttachPanelOpen() {
+      return !!(attachPanel && !attachPanel.classList.contains('hidden'));
+    }
+
+    function openAttachPanel() {
+      if (attachPanel) attachPanel.classList.remove('hidden');
+    }
+
+    function closeAttachPanel() {
+      if (attachPanel) attachPanel.classList.add('hidden');
+    }
+
+    function renderActiveToggleIcons() {
+      if (!activeToggleIcons) return;
+      activeToggleIcons.innerHTML = '';
+      const active = [];
+      if (reasoningEffortOn) active.push({ cls: 'reasoning', icon: iconNameMap('brain') });
+      if (searchOn) active.push({ cls: 'search', icon: iconNameMap('search') });
+      if (!active.length) {
+        activeToggleIcons.classList.add('hidden');
+        return;
+      }
+      activeToggleIcons.classList.remove('hidden');
+      active.forEach((a) => {
+        const span = document.createElement('span');
+        span.className = 'active-toggle-icon ' + a.cls;
+        const icon = document.createElement('iconify-icon');
+        icon.setAttribute('icon', a.icon);
+        span.appendChild(icon);
+        activeToggleIcons.appendChild(span);
+      });
+    }
+
+    function setReasoningEffort(on) {
+      reasoningEffortOn = !!on;
+      if (toggleReasoningBtn) toggleReasoningBtn.classList.toggle('active', reasoningEffortOn);
+      renderActiveToggleIcons();
+    }
+
+    function setSearchOn(on) {
+      searchOn = !!on;
+      if (toggleSearchBtn) toggleSearchBtn.classList.toggle('active', searchOn);
+      renderActiveToggleIcons();
+    }
+
+    if (attachBtn) {
+      attachBtn.addEventListener('click', () => {
+        if (isAttachPanelOpen()) closeAttachPanel();
+        else openAttachPanel();
+      });
+    }
+    if (attachPanelClose) attachPanelClose.addEventListener('click', closeAttachPanel);
+    if (attachPickPhoto) attachPickPhoto.addEventListener('click', () => attachFilePhoto && attachFilePhoto.click());
+    if (attachPickFile) attachPickFile.addEventListener('click', () => attachFileGeneric && attachFileGeneric.click());
+    if (attachPickCamera) attachPickCamera.addEventListener('click', () => attachFileCamera && attachFileCamera.click());
+    if (toggleReasoningBtn) toggleReasoningBtn.addEventListener('click', () => setReasoningEffort(!reasoningEffortOn));
+    if (toggleSearchBtn) toggleSearchBtn.addEventListener('click', () => setSearchOn(!searchOn));
+
     async function regenerateAssistantAtWrap(wrap, bubble) {
       if (isSending || isRegenerating) return;
       if (!wrap.classList.contains('latest-assistant')) return;
@@ -3161,8 +3996,11 @@
       activeAbortController = controller;
       wrap.classList.remove('actions-ready');
       wrap.classList.add('actions-pending');
+      // 이전 버전의 작업 내역/파일 버튼이 남아있으면 지운다 - 재생성마다 새로 쌓는다.
+      wrap.querySelectorAll('.tool-log-btn, .tool-file-results').forEach((el) => el.remove());
 
       const stopDots = mountTypingLoader(bubble);
+      const toolTracker = createLiveToolTracker(wrap);
       const sessionIdForRequest = currentSessionId;
       let accumulated = '';
       let gotFirstToken = false;
@@ -3176,8 +4014,9 @@
             system_prompt: AI_SYSTEM_PROMPT
           },
           {
+            onTool: (payload) => toolTracker.addEvent(payload),
             onToken: (chunk) => {
-              if (!gotFirstToken) { stopDots(); gotFirstToken = true; }
+              if (!gotFirstToken) { stopDots(); toolTracker.markStreaming(); gotFirstToken = true; }
               accumulated += chunk;
               if (currentSessionId === sessionIdForRequest) {
                 setAssistantHtml(bubble, accumulated);
@@ -3189,9 +4028,14 @@
                 const norm = normalizeAssistantMessage(entry);
                 norm.versions.push(finalText);
                 norm.versionIndex = norm.versions.length - 1;
+                norm.toolLog = toolTracker.getLog();
+                norm.editedFiles = toolTracker.getEditedFiles();
                 chatHistory[idx] = norm;
 
                 setAssistantHtml(bubble, finalText);
+                if (norm.editedFiles.length) {
+                  wrap.appendChild(createToolFileResultsRow(norm.editedFiles));
+                }
                 triggerGradientWave();
                 finalizeAssistantWrap(wrap);
                 persistCurrentSession();
@@ -3208,8 +4052,13 @@
                 if (finalText) {
                   norm.versions.push(finalText);
                   norm.versionIndex = norm.versions.length - 1;
+                  norm.toolLog = toolTracker.getLog();
+                  norm.editedFiles = toolTracker.getEditedFiles();
                   chatHistory[idx] = norm;
                   setAssistantHtml(bubble, finalText);
+                  if (norm.editedFiles.length) {
+                    wrap.appendChild(createToolFileResultsRow(norm.editedFiles));
+                  }
                   finalizeAssistantWrap(wrap);
                   persistCurrentSession();
                 } else {
@@ -3549,6 +4398,9 @@
           : versions.length - 1;
         setAssistantHtml(bubble, versions[versionIndex] || content);
       }
+      if (role === 'assistant' && opts.toolLog && opts.toolLog.length) {
+        wrap.appendChild(createToolLogButton(opts.toolLog));
+      }
       wrap.appendChild(bubble);
       if (role === 'user') {
         attachUserActions(wrap, bubble);
@@ -3557,6 +4409,9 @@
         attachAssistantActions(wrap, bubble, opts.sourceUserText || '');
         if (opts.deferActions) wrap.classList.add('actions-pending');
         else wrap.classList.add('actions-ready');
+        if (opts.editedFiles && opts.editedFiles.length) {
+          wrap.appendChild(createToolFileResultsRow(opts.editedFiles));
+        }
       }
       chatMessages.appendChild(wrap);
       scrollChatToBottom();
@@ -3705,6 +4560,17 @@
         chatInput.value = '';
         chatInput.style.height = '24px';
       }
+
+      // 첨부/토글은 메시지 하나당 한 번만 쓴다 - 요청 본문에 넣을 값을 먼저 떼어내고
+      // UI는 바로 원래 상태로 되돌린다(칩 비우기, 토글 끄기).
+      const requestFileIds = attachedFiles.map((f) => f.file_id);
+      const requestReasoningEffort = reasoningEffortOn ? 'high' : null;
+      const requestForceSearch = searchOn;
+      clearAttachedFiles();
+      setReasoningEffort(false);
+      setSearchOn(false);
+      closeAttachPanel();
+
       setSendLoading(true);
       const controller = new AbortController();
       activeAbortController = controller;
@@ -3718,22 +4584,29 @@
       const assistantWrap = assistantResult.wrap;
       const bubble = assistantResult.bubble;
       const stopDots = mountTypingLoader(bubble);
+      const toolTracker = createLiveToolTracker(assistantWrap);
       scrollChatToBottom();
+
+      const requestBody = {
+        message: text,
+        messages: historyBeforeThis,
+        session_id: sessionIdForRequest,
+        system_prompt: AI_SYSTEM_PROMPT
+      };
+      if (requestFileIds.length) requestBody.file_ids = requestFileIds;
+      if (requestReasoningEffort) requestBody.reasoning_effort = requestReasoningEffort;
+      if (requestForceSearch) requestBody.force_search = true;
 
       let accumulated = '';
       let gotFirstToken = false;
 
       try {
         await requestAiChatStream(
+          requestBody,
           {
-            message: text,
-            messages: historyBeforeThis,
-            session_id: sessionIdForRequest,
-            system_prompt: AI_SYSTEM_PROMPT
-          },
-          {
+            onTool: (payload) => toolTracker.addEvent(payload),
             onToken: (chunk) => {
-              if (!gotFirstToken) { stopDots(); gotFirstToken = true; }
+              if (!gotFirstToken) { stopDots(); toolTracker.markStreaming(); gotFirstToken = true; }
               accumulated += chunk;
               if (currentSessionId === sessionIdForRequest) {
                 setAssistantHtml(bubble, accumulated);
@@ -3743,8 +4616,14 @@
               const finalText = accumulated.trim() || '죄송해요, 응답을 생성하지 못했어요.';
               if (currentSessionId === sessionIdForRequest) {
                 setAssistantHtml(bubble, finalText);
-                chatHistory.push({ role: 'assistant', versions: [finalText], versionIndex: 0 });
+                chatHistory.push({
+                  role: 'assistant', versions: [finalText], versionIndex: 0,
+                  toolLog: toolTracker.getLog(), editedFiles: toolTracker.getEditedFiles()
+                });
                 assistantWrap._historyIndex = chatHistory.length - 1;
+                if (toolTracker.getEditedFiles().length) {
+                  assistantWrap.appendChild(createToolFileResultsRow(toolTracker.getEditedFiles()));
+                }
                 finalizeAssistantWrap(assistantWrap);
                 triggerGradientWave();
                 persistCurrentSession();
@@ -3760,7 +4639,10 @@
                 const finalText = accumulated.trim();
                 if (finalText) {
                   setAssistantHtml(bubble, finalText);
-                  chatHistory.push({ role: 'assistant', versions: [finalText], versionIndex: 0 });
+                  chatHistory.push({
+                    role: 'assistant', versions: [finalText], versionIndex: 0,
+                    toolLog: toolTracker.getLog(), editedFiles: toolTracker.getEditedFiles()
+                  });
                   assistantWrap._historyIndex = chatHistory.length - 1;
                   finalizeAssistantWrap(assistantWrap);
                   persistCurrentSession();

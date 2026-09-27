@@ -64,3 +64,17 @@
       <button id="auth-state-ok" class="ripple-btn px-3 py-2 text-[12px] rounded-full bg-[#74b9ff] text-white" type="button">확인</button>
     </div>
   </div>
+
+  <!-- 작업 내역(도구 사용 로그) 모달 - 데스크탑은 가운데, 모바일은 아래에서 올라오는 시트 -->
+  <div id="tool-log-modal" class="tool-log-backdrop">
+    <div class="tool-log-sheet">
+      <div class="tool-log-handle"></div>
+      <div class="tool-log-header">
+        <h3 class="text-[14px] font-medium text-gray-800">작업 내역</h3>
+        <button id="tool-log-close" type="button" class="ripple-btn w-8 h-8 rounded-full hover:bg-gray-100 text-gray-500 flex items-center justify-center">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div id="tool-log-list" class="tool-log-list"></div>
+    </div>
+  </div>
