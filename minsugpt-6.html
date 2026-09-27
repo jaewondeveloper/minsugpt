@@ -144,6 +144,25 @@
       justify-content: center;
     }
 
+    /* 전송 버튼 - 노란색→파란색 그라데이션 알약(pill) 버튼 */
+    #send-btn.send-btn-gradient {
+      background: linear-gradient(135deg, #ffd93d 0%, #4dabff 100%);
+      box-shadow: 0 3px 10px rgba(77, 171, 255, 0.35);
+    }
+    #send-btn.send-btn-gradient:active {
+      filter: brightness(0.95);
+    }
+
+    /* AI 말풍선에 스트리밍으로 표시되는 오류 메시지 톤 */
+    .msg-assistant-error {
+      color: #c0392b !important;
+    }
+    .msg-assistant-error .text-gray-900,
+    .msg-assistant-error .text-gray-800,
+    .msg-assistant-error .text-gray-700 {
+      color: #c0392b !important;
+    }
+
     /* --- 모바일 스타일 리플(Ripple) 효과 --- */
     .ripple-btn {
       position: relative;
@@ -1369,9 +1388,9 @@
           <button 
             id="send-btn"
             disabled
-            class="w-9 h-9 min-w-[36px] min-h-[36px] rounded-full flex items-center justify-center bg-gray-100 text-gray-400 cursor-not-allowed transition-all duration-300"
+            class="px-5 h-9 min-w-[64px] min-h-[36px] rounded-full flex items-center justify-center gap-1.5 bg-gray-100 text-gray-400 cursor-not-allowed transition-all duration-300"
           >
-            <i data-lucide="arrow-up" class="w-3.5 h-3.5 stroke-[2.5]"></i>
+            <iconify-icon icon="mdi:send" class="text-[16px]"></iconify-icon>
           </button>
         </div>
       </div>
@@ -1533,7 +1552,15 @@
 
     renderRoundedIcons(document);
 
-    const API_BASE = 'https://sigan.onrender.com';
+    const API_BASE = 'https://minsuapi.corerepublix.co.kr';
+    const AI_CHAT_PATH = '/api/ai/chat';
+    const AI_CHAT_PENDING_PATH = '/api/ai/chat/pending';
+    const AI_CHAT_STREAM_PATH = '/api/ai/chat/stream/';
+    const AI_SYSTEM_PROMPT = (
+      '당신은 MinsuGPT입니다. 누구나 사용할 수 있는 친절한 AI 도우미입니다. ' +
+      '항상 한국어로 간결하고 따뜻하게 답하세요. 마크다운(표, 목록, 굵게)으로 보기 좋게 답하세요. ' +
+      '시간표·급식·학사일정 질문은 제공된 도구 결과만 사용하고, 없으면 임의로 만들지 마세요.'
+    );
     const AUTH_BASE = 'https://jaewondev6.pythonanywhere.com';
     const AUTH_LOGIN_PATH = '/api/auth/login';
     const AUTH_VERIFY_PATH = '/api/auth/verify';
@@ -1685,6 +1712,208 @@
         throw new Error(data.error || data.message || ('요청 실패 (' + res.status + ')'));
       }
       return data;
+    }
+
+    // ── AI 채팅 백엔드(SSE 스트리밍) 통신 헬퍼 ──
+    // 백엔드는 text/event-stream 으로 응답한다. 각 이벤트는 "data: {...}\n\n" 형태이며
+    // {"type":"meta","job_id":...} → {"type":"token","content":...}(여러 번) → {"type":"done"}
+    // (실패 시 {"type":"error","message":...}) 순서로 온다.
+    function dispatchSSEPayload(payload, handlers) {
+      if (!payload || !payload.type) return;
+      if (payload.type === 'meta' && handlers.onMeta) handlers.onMeta(payload.job_id);
+      else if (payload.type === 'token' && handlers.onToken) handlers.onToken(payload.content || '');
+      else if (payload.type === 'done' && handlers.onDone) handlers.onDone();
+      else if (payload.type === 'error' && handlers.onError) handlers.onError(payload.message || '오류가 발생했습니다.');
+    }
+
+    function parseSSEChunk(buffer, handlers) {
+      let idx;
+      while ((idx = buffer.indexOf('\n\n')) !== -1) {
+        const rawEvent = buffer.slice(0, idx);
+        buffer = buffer.slice(idx + 2);
+        const dataLine = rawEvent.split('\n').find((l) => l.startsWith('data:'));
+        if (!dataLine) continue;
+        const jsonStr = dataLine.slice(5).trim();
+        if (!jsonStr) continue;
+        try {
+          dispatchSSEPayload(JSON.parse(jsonStr), handlers);
+        } catch {
+          // 잘린 JSON 등은 무시
+        }
+      }
+      return buffer;
+    }
+
+    async function consumeSSEResponse(res, handlers) {
+      if (!res.body || !res.body.getReader) {
+        // 스트리밍을 지원하지 않는 아주 오래된 환경 대비: 전체 텍스트를 한 번에 파싱
+        const text = await res.text();
+        parseSSEChunk(text.endsWith('\n\n') ? text : text + '\n\n', handlers);
+        return;
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        buffer = parseSSEChunk(buffer, handlers);
+      }
+    }
+
+    async function requestAiChatStream(body, handlers) {
+      let res;
+      try {
+        res = await fetch(API_BASE + AI_CHAT_PATH, {
+          method: 'POST',
+          headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+          body: JSON.stringify(body)
+        });
+      } catch (err) {
+        handlers.onError && handlers.onError(err.message || '연결에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+        return;
+      }
+      if (!res.ok) {
+        let message = '서버 오류 (' + res.status + ')';
+        try {
+          const data = await res.json();
+          if (data && data.error) message = data.error;
+        } catch { /* 무시 */ }
+        handlers.onError && handlers.onError(message);
+        return;
+      }
+      await consumeSSEResponse(res, handlers);
+    }
+
+    async function reattachToJobStream(jobId, handlers) {
+      let res;
+      try {
+        res = await fetch(API_BASE + AI_CHAT_STREAM_PATH + encodeURIComponent(jobId), {
+          method: 'GET',
+          headers: authHeaders()
+        });
+      } catch (err) {
+        handlers.onError && handlers.onError(err.message || '연결에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+        return;
+      }
+      if (!res.ok) {
+        handlers.onError && handlers.onError('서버 오류 (' + res.status + ')');
+        return;
+      }
+      await consumeSSEResponse(res, handlers);
+    }
+
+    // 자리를 비운 사이 완료된(또는 아직 진행 중인) 답변이 있는지 확인.
+    // 채팅방을 열 때(loadSession)마다 호출한다.
+    async function checkPendingForSession(sessionId) {
+      if (!sessionId) return;
+      let res;
+      try {
+        res = await fetch(API_BASE + AI_CHAT_PENDING_PATH + '?session_id=' + encodeURIComponent(sessionId), {
+          headers: authHeaders()
+        });
+      } catch (err) {
+        console.error('[MinsuGPT][pendingCheck]', err);
+        return;
+      }
+      if (!res.ok) return;
+      let data;
+      try { data = await res.json(); } catch { return; }
+      if (!data || !data.success || !data.has_pending) return;
+
+      if (data.status === 'done') {
+        finishPendingReply(sessionId, (data.reply || '').trim());
+      } else if (data.status === 'running') {
+        resumePendingStream(sessionId, data.job_id);
+      }
+      // status === 'error' 인 경우는 조용히 무시 (사용자가 다시 보내면 됨)
+    }
+
+    // 현재 화면에 떠 있지 않은 세션의 저장소에 어시스턴트 답변만 추가로 반영
+    // (응답을 기다리는 도중 사용자가 다른 채팅방으로 이동한 경우 등)
+    function appendAssistantReplyToStoredSession(sessionId, assistantText) {
+      if (!assistantText) return;
+      const session = getSession(sessionId);
+      if (!session) return;
+      session.messages = session.messages || [];
+      session.messages.push({ role: 'assistant', versions: [assistantText], versionIndex: 0 });
+      session.updatedAt = new Date().toISOString();
+      upsertSession(session);
+      renderSidebar();
+      syncSessionToServer(session).catch((err) => console.error('[MinsuGPT][bgPersist]', err));
+    }
+
+    function finishPendingReply(sessionId, text) {
+      if (!text) return;
+      const session = getSession(sessionId);
+      if (!session) return;
+      session.messages = session.messages || [];
+      session.messages.push({ role: 'assistant', versions: [text], versionIndex: 0 });
+      session.updatedAt = new Date().toISOString();
+      upsertSession(session);
+      renderSidebar();
+      syncSessionToServer(session).catch((err) => console.error('[MinsuGPT][pendingPersist]', err));
+
+      if (currentSessionId === sessionId) {
+        showChatLayout();
+        chatHistory.push({ role: 'assistant', versions: [text], versionIndex: 0 });
+        const result = appendMessage('assistant', '', { deferActions: true, historyIndex: chatHistory.length - 1 });
+        streamAssistantReply(result.bubble, text);
+        scrollChatToBottom();
+      }
+    }
+
+    function resumePendingStream(sessionId, jobId) {
+      if (currentSessionId === sessionId) {
+        showChatLayout();
+        const result = appendMessage('assistant', '', { deferActions: true, historyIndex: chatHistory.length });
+        const stopDots = mountTypingLoader(result.bubble);
+        let accumulated = '';
+        let gotFirstToken = false;
+        reattachToJobStream(jobId, {
+          onToken: (chunk) => {
+            if (!gotFirstToken) { stopDots(); gotFirstToken = true; }
+            accumulated += chunk;
+            setAssistantHtml(result.bubble, accumulated);
+          },
+          onDone: () => {
+            const finalText = accumulated.trim() || '죄송해요, 응답을 생성하지 못했어요.';
+            if (currentSessionId === sessionId) {
+              setAssistantHtml(result.bubble, finalText);
+              chatHistory.push({ role: 'assistant', versions: [finalText], versionIndex: 0 });
+              result.wrap._historyIndex = chatHistory.length - 1;
+              finalizeAssistantWrap(result.wrap);
+              persistCurrentSession();
+            } else {
+              result.wrap.remove();
+              appendAssistantReplyToStoredSession(sessionId, finalText);
+            }
+          },
+          onError: (message) => {
+            stopDots();
+            result.wrap.remove();
+            streamAssistantErrorMessage(message || '연결에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+          }
+        });
+      } else {
+        // 다른 채팅방을 보는 중이면 화면은 건드리지 않고 조용히 이어받아 해당 세션 저장소에만 반영
+        let accumulated = '';
+        reattachToJobStream(jobId, {
+          onToken: (chunk) => { accumulated += chunk; },
+          onDone: () => {
+            appendAssistantReplyToStoredSession(sessionId, accumulated.trim() || '죄송해요, 응답을 생성하지 못했어요.');
+          },
+          onError: (message) => console.error('[MinsuGPT][resumeStream]', message)
+        });
+      }
+    }
+
+    function finalizeAssistantWrap(wrap) {
+      wrap.classList.remove('actions-pending');
+      wrap.classList.add('actions-ready');
+      updateVersionNav(wrap, wrap.querySelector('.assistant-actions'));
+      updateAssistantActionVisibility();
     }
 
     async function fetchRemoteSessions() {
@@ -1941,13 +2170,11 @@
     });
 
     async function removeSessionById(id) {
-      try {
-        await deleteSessionFromServer(id);
-      } catch (err) {
-        console.error('[MinsuGPT][deleteSession]', err);
-        showError('채팅 삭제에 실패했습니다.');
-        return false;
-      }
+      const removedIndex = sessionsStore.sessions.findIndex((s) => s.id === id);
+      const removedSession = removedIndex !== -1 ? sessionsStore.sessions[removedIndex] : null;
+      const prevCurrentId = sessionsStore.currentId;
+
+      // 낙관적 업데이트: 서버 응답을 기다리지 않고 목록에서 즉시 제거
       sessionsStore.sessions = sessionsStore.sessions.filter((s) => s.id !== id);
       if (sessionsStore.currentId === id) sessionsStore.currentId = sessionsStore.sessions[0]?.id || null;
       saveStore();
@@ -1957,6 +2184,22 @@
         loadSession(sessionsStore.currentId);
       } else {
         renderSidebar();
+      }
+
+      try {
+        await deleteSessionFromServer(id);
+      } catch (err) {
+        console.error('[MinsuGPT][deleteSession]', err);
+        // 실패 시 원래 상태로 복구
+        if (removedSession) {
+          const insertAt = Math.min(removedIndex, sessionsStore.sessions.length);
+          sessionsStore.sessions.splice(insertAt, 0, removedSession);
+        }
+        sessionsStore.currentId = prevCurrentId;
+        saveStore();
+        renderSidebar();
+        showError('채팅 삭제에 실패했습니다.');
+        return false;
       }
       return true;
     }
@@ -2917,46 +3160,64 @@
       wrap.classList.add('actions-pending');
 
       const stopDots = mountTypingLoader(bubble);
+      const sessionIdForRequest = currentSessionId;
+      let accumulated = '';
+      let gotFirstToken = false;
 
       try {
-        const res = await fetch(API_BASE + '/api/ai/chat', {
-          method: 'POST',
-          headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
-          body: JSON.stringify({
+        await requestAiChatStream(
+          {
             message: userText,
             messages: historyForApi(idx),
-            system_prompt: (
-              '당신은 MinsuGPT입니다. 누구나 사용할 수 있는 친절한 AI 도우미입니다. ' +
-              '항상 한국어로 간결하고 따뜻하게 답하세요. 마크다운(표, 목록, 굵게)으로 보기 좋게 답하세요. ' +
-              '시간표·급식·학사일정 질문은 제공된 도구 결과만 사용하고, 없으면 임의로 만들지 마세요.'
-            )
-          })
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok || !data.success) {
-          throw new Error(data.error || ('서버 오류 (' + res.status + ')'));
-        }
-        const reply = (data.reply || '').trim();
-        if (!reply) throw new Error('AI 응답이 비어 있습니다.');
+            session_id: sessionIdForRequest,
+            system_prompt: AI_SYSTEM_PROMPT
+          },
+          {
+            onToken: (chunk) => {
+              if (!gotFirstToken) { stopDots(); gotFirstToken = true; }
+              accumulated += chunk;
+              if (currentSessionId === sessionIdForRequest) {
+                setAssistantHtml(bubble, accumulated);
+              }
+            },
+            onDone: () => {
+              const finalText = accumulated.trim() || '죄송해요, 응답을 생성하지 못했어요.';
+              if (currentSessionId === sessionIdForRequest) {
+                const norm = normalizeAssistantMessage(entry);
+                norm.versions.push(finalText);
+                norm.versionIndex = norm.versions.length - 1;
+                chatHistory[idx] = norm;
 
-        stopDots();
-
-        const norm = normalizeAssistantMessage(entry);
-        norm.versions.push(reply);
-        norm.versionIndex = norm.versions.length - 1;
-        chatHistory[idx] = norm;
-
-        await streamAssistantReply(bubble, reply);
-        triggerGradientWave();
-        updateVersionNav(wrap, wrap.querySelector('.assistant-actions'));
-        persistCurrentSession();
+                setAssistantHtml(bubble, finalText);
+                triggerGradientWave();
+                finalizeAssistantWrap(wrap);
+                persistCurrentSession();
+              } else {
+                appendAssistantReplyToStoredSession(sessionIdForRequest, finalText);
+              }
+            },
+            onError: (message) => {
+              if (!gotFirstToken) stopDots();
+              if (currentSessionId === sessionIdForRequest) {
+                const norm = normalizeAssistantMessage(entry);
+                setAssistantHtml(bubble, assistantActiveContent(norm));
+                wrap.classList.remove('actions-pending');
+                wrap.classList.add('actions-ready');
+                streamAssistantErrorMessage(message || '연결에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+              }
+              console.error('[MinsuGPT]', message);
+            }
+          }
+        );
       } catch (err) {
-        stopDots();
-        const norm = normalizeAssistantMessage(entry);
-        setAssistantHtml(bubble, assistantActiveContent(norm));
-        wrap.classList.remove('actions-pending');
-        wrap.classList.add('actions-ready');
-        showError(err.message || '연결에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+        if (!gotFirstToken) stopDots();
+        if (currentSessionId === sessionIdForRequest) {
+          const norm = normalizeAssistantMessage(entry);
+          setAssistantHtml(bubble, assistantActiveContent(norm));
+          wrap.classList.remove('actions-pending');
+          wrap.classList.add('actions-ready');
+          await streamAssistantErrorMessage(err.message || '연결에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+        }
         console.error('[MinsuGPT]', err);
       } finally {
         isRegenerating = false;
@@ -3230,6 +3491,20 @@
       loadingAnimStop = null;
     }
 
+    // 오류/연결 실패 메시지를 모달이나 배너 대신, AI가 말하듯 채팅창에 스트리밍으로 표시
+    async function streamAssistantErrorMessage(message) {
+      const wrap = document.createElement('div');
+      wrap.className = 'flex w-full justify-start';
+      const bubble = document.createElement('div');
+      bubble.className = 'msg-assistant msg-assistant-error text-[14px] leading-relaxed';
+      wrap.appendChild(bubble);
+      chatMessages.appendChild(wrap);
+      scrollChatToBottom();
+      await streamAssistantReply(bubble, message);
+      scrollChatToBottom();
+      return wrap;
+    }
+
     function appendMessage(role, content, opts) {
       opts = opts || {};
       const wrap = document.createElement('div');
@@ -3331,6 +3606,7 @@
       renderSidebar();
       hideError();
       if (isMobile()) closeMobileSidebar();
+      checkPendingForSession(id).catch((err) => console.error('[MinsuGPT][pendingCheck]', err));
     }
 
     function setSendLoading(loading) {
@@ -3356,6 +3632,14 @@
       const userResult = appendMessage('user', text);
       const userWrap = userResult.wrap;
 
+      // 응답을 기다리지 않고 사용자 메시지를 먼저 기록/저장한다.
+      // → 서버는 이 시점 이후 백그라운드에서 계속 답을 생성하므로,
+      //   중간에 페이지를 나가도 최소한 보낸 메시지는 항상 남아있다.
+      const historyBeforeThis = historyForApi();
+      chatHistory.push({ role: 'user', content: text });
+      userWrap._historyIndex = chatHistory.length - 1;
+      persistCurrentSession();
+
       const session = getSession(currentSessionId);
       if (session && session.title === '새 채팅') {
         session.title = sessionTitle(text);
@@ -3370,58 +3654,68 @@
       }
       setSendLoading(true);
 
-      const loader = createLoadingBubble();
+      const sessionIdForRequest = currentSessionId;
+      const assistantResult = appendMessage('assistant', '', {
+        sourceUserText: text,
+        deferActions: true,
+        historyIndex: chatHistory.length
+      });
+      const assistantWrap = assistantResult.wrap;
+      const bubble = assistantResult.bubble;
+      const stopDots = mountTypingLoader(bubble);
       scrollChatToBottom();
 
+      let accumulated = '';
+      let gotFirstToken = false;
+
       try {
-        const res = await fetch(API_BASE + '/api/ai/chat', {
-          method: 'POST',
-          headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
-          body: JSON.stringify({
+        await requestAiChatStream(
+          {
             message: text,
-            messages: historyForApi(),
-            system_prompt: (
-              '당신은 MinsuGPT입니다. 누구나 사용할 수 있는 친절한 AI 도우미입니다. ' +
-              '항상 한국어로 간결하고 따뜻하게 답하세요. 마크다운(표, 목록, 굵게)으로 보기 좋게 답하세요. ' +
-              '시간표·급식·학사일정 질문은 제공된 도구 결과만 사용하고, 없으면 임의로 만들지 마세요.'
-            )
-          })
-        });
-
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok || !data.success) {
-          throw new Error(data.error || ('서버 오류 (' + res.status + ')'));
-        }
-
-        const reply = (data.reply || '').trim();
-        if (!reply) throw new Error('AI 응답이 비어 있습니다.');
-
-        stopLoading(loader);
-        loader.wrap.remove();
-
-        chatHistory.push({ role: 'user', content: text });
-        userWrap._historyIndex = chatHistory.length - 1;
-        persistCurrentSession();
-
-        const assistantResult = appendMessage('assistant', '', {
-          sourceUserText: text,
-          deferActions: true,
-          historyIndex: chatHistory.length
-        });
-        const assistantWrap = assistantResult.wrap;
-        const bubble = assistantResult.bubble;
-
-        await streamAssistantReply(bubble, reply);
-        triggerGradientWave();
-
-        chatHistory.push({ role: 'assistant', versions: [reply], versionIndex: 0 });
-        assistantWrap._historyIndex = chatHistory.length - 1;
-        updateVersionNav(assistantWrap, assistantWrap.querySelector('.assistant-actions'));
-        persistCurrentSession();
+            messages: historyBeforeThis,
+            session_id: sessionIdForRequest,
+            system_prompt: AI_SYSTEM_PROMPT
+          },
+          {
+            onToken: (chunk) => {
+              if (!gotFirstToken) { stopDots(); gotFirstToken = true; }
+              accumulated += chunk;
+              if (currentSessionId === sessionIdForRequest) {
+                setAssistantHtml(bubble, accumulated);
+              }
+            },
+            onDone: () => {
+              const finalText = accumulated.trim() || '죄송해요, 응답을 생성하지 못했어요.';
+              if (currentSessionId === sessionIdForRequest) {
+                setAssistantHtml(bubble, finalText);
+                chatHistory.push({ role: 'assistant', versions: [finalText], versionIndex: 0 });
+                assistantWrap._historyIndex = chatHistory.length - 1;
+                finalizeAssistantWrap(assistantWrap);
+                triggerGradientWave();
+                persistCurrentSession();
+              } else {
+                assistantWrap.remove();
+                appendAssistantReplyToStoredSession(sessionIdForRequest, finalText);
+              }
+            },
+            onError: (message) => {
+              if (!gotFirstToken) stopDots();
+              if (currentSessionId === sessionIdForRequest) {
+                assistantWrap.remove();
+                streamAssistantErrorMessage(message || '연결에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+              } else {
+                assistantWrap.remove();
+              }
+              console.error('[MinsuGPT]', message);
+            }
+          }
+        );
       } catch (err) {
-        stopLoading(loader);
-        loader.wrap.remove();
-        showError(err.message || '연결에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+        if (!gotFirstToken) stopDots();
+        assistantWrap.remove();
+        if (currentSessionId === sessionIdForRequest) {
+          await streamAssistantErrorMessage(err.message || '연결에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+        }
         console.error('[MinsuGPT]', err);
       } finally {
         setSendLoading(false);
@@ -3656,10 +3950,10 @@
       if (this.value.trim().length > 0) {
         sendBtn.disabled = false;
         sendBtn.classList.remove('bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
-        sendBtn.classList.add('bg-[#74b9ff]', 'text-white', 'cursor-pointer', 'shadow-sm');
+        sendBtn.classList.add('send-btn-gradient', 'text-white', 'cursor-pointer', 'shadow-sm');
       } else {
         sendBtn.disabled = true;
-        sendBtn.classList.remove('bg-[#74b9ff]', 'text-white', 'cursor-pointer', 'shadow-sm');
+        sendBtn.classList.remove('send-btn-gradient', 'text-white', 'cursor-pointer', 'shadow-sm');
         sendBtn.classList.add('bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
       }
 
