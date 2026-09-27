@@ -656,21 +656,31 @@
       }
     }
 
+    /* 로딩 점 3개 - 브라우저 네이티브 CSS 애니메이션으로 구동한다.
+       (이전에는 requestAnimationFrame으로 직접 좌표를 계산했는데, 메인 스레드가
+       잠깐 막히거나 tick 루프가 끊기면 점이 멈춘 채로 굳는 문제가 있었다.
+       CSS 애니메이션은 컴포지터가 돌리므로 그런 식으로 멈추지 않는다.) */
     .typing-dots {
-      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
       width: 32px;
       height: 18px;
       padding: 2px 0;
     }
     .typing-dots span {
-      position: absolute;
-      top: 5px;
-      left: 0;
       width: 7px;
       height: 7px;
       background: #111;
       border-radius: 50%;
-      will-change: transform;
+      animation: typing-dot-bounce 1.1s ease-in-out infinite;
+    }
+    .typing-dots span:nth-child(1) { animation-delay: -0.32s; }
+    .typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0s; }
+    @keyframes typing-dot-bounce {
+      0%, 80%, 100% { transform: translateY(0); opacity: 0.5; }
+      40% { transform: translateY(-6px); opacity: 1; }
     }
 
     .history-item {
@@ -1495,6 +1505,7 @@
         check: 'tabler:check',
         'trash-2': 'tabler:trash-filled',
         send: 'heroicons:paper-airplane-20-solid',
+        'square-stop': 'heroicons:stop-20-solid',
         'thumb-up': 'tabler:thumb-up',
         'thumb-down': 'tabler:thumb-down',
         'refresh-cw': 'tabler:refresh',
@@ -1582,14 +1593,13 @@
     const AUTH_VERIFY_INTERVAL_MS = 15000;
     const NORMAL_LOGIN_MS = 24 * 60 * 60 * 1000;
     const STORAGE_KEY = 'minsugpt_chats_v1';
-    const SLOT_X = [0, 11, 22];
 
     let chatHistory = [];
     let currentSessionId = null;
     let isSending = false;
     let isRegenerating = false;
+    let activeAbortController = null; // 지금 스트리밍 중인 요청의 컨트롤러(정지 버튼용)
     let loadingAnimStop = null;
-    const typingAnimStates = new Set();
 
     function loginPageUrl() {
       return resolveLoginUrlFromApp();
@@ -1838,7 +1848,12 @@
       } catch (err) {
         if (!finished) {
           finished = true;
-          handlers.onError && handlers.onError(describeNetworkError('AI 응답 스트림을 읽는 중 연결이 끊겼습니다', method, url, err));
+          // 사용자가 '정지' 버튼을 눌러 fetch를 abort한 경우 - 오류가 아니라 정상적인 중단이다.
+          if (err && err.name === 'AbortError') {
+            handlers.onAbort && handlers.onAbort();
+          } else {
+            handlers.onError && handlers.onError(describeNetworkError('AI 응답 스트림을 읽는 중 연결이 끊겼습니다', method, url, err));
+          }
         }
         return;
       }
@@ -1852,16 +1867,20 @@
       }
     }
 
-    async function requestAiChatStream(body, handlers) {
+    // signal(AbortSignal)을 넘기면 '정지' 버튼으로 도중에 취소할 수 있다.
+    // abort는 오류가 아니라 handlers.onAbort로 별도 보고한다.
+    async function requestAiChatStream(body, handlers, signal) {
       const url = API_BASE + AI_CHAT_PATH;
       let res;
       try {
         res = await fetch(url, {
           method: 'POST',
           headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
-          body: JSON.stringify(body)
+          body: JSON.stringify(body),
+          signal
         });
       } catch (err) {
+        if (err && err.name === 'AbortError') { handlers.onAbort && handlers.onAbort(); return; }
         handlers.onError && handlers.onError(describeNetworkError('AI 백엔드에 연결하지 못했습니다', 'POST', url, err));
         return;
       }
@@ -1872,15 +1891,17 @@
       await consumeSSEWithDiagnostics(res, handlers, 'POST', url);
     }
 
-    async function reattachToJobStream(jobId, handlers) {
+    async function reattachToJobStream(jobId, handlers, signal) {
       const url = API_BASE + AI_CHAT_STREAM_PATH + encodeURIComponent(jobId);
       let res;
       try {
         res = await fetch(url, {
           method: 'GET',
-          headers: authHeaders()
+          headers: authHeaders(),
+          signal
         });
       } catch (err) {
+        if (err && err.name === 'AbortError') { handlers.onAbort && handlers.onAbort(); return; }
         handlers.onError && handlers.onError(describeNetworkError('진행 중인 답변 스트림에 다시 연결하지 못했습니다', 'GET', url, err));
         return;
       }
@@ -2128,6 +2149,7 @@
     const chatHistoryList = document.getElementById('chat-history-list');
     const chatInput = document.getElementById('chat-input');
     const sendBtn = document.getElementById('send-btn');
+    const sendBtnIcon = sendBtn.querySelector('iconify-icon, [data-lucide]');
     const mainPanel = document.getElementById('main-panel');
     const welcomeBlock = document.getElementById('welcome-block');
     const chatMessages = document.getElementById('chat-messages');
@@ -2386,9 +2408,9 @@
         loading.className = 'history-loading-wrap';
         loading.innerHTML = `
           <div class="typing-dots" aria-label="채팅 기록 로딩 중">
-            <span style="transform: translate(0px, 0px)"></span>
-            <span style="transform: translate(11px, 0px)"></span>
-            <span style="transform: translate(22px, 0px)"></span>
+            <span></span>
+            <span></span>
+            <span></span>
           </div>
         `;
         chatHistoryList.appendChild(loading);
@@ -3048,194 +3070,33 @@
       persistCurrentSession();
     }
 
+    // 점 3개 로딩 애니메이션은 순수 CSS @keyframes(typing-dot-bounce)로 돈다.
+    // (이전에는 requestAnimationFrame으로 매 프레임 좌표를 계산했는데, 메인 스레드가
+    // 잠깐 바쁘거나 tick 루프가 한 번이라도 끊기면 그 자리에서 멈춰버리는 문제가 있었다.
+    // CSS 애니메이션은 컴포지터가 돌리므로 JS가 멈춰도 끊기지 않고, 탭이 백그라운드로
+    // 가도 브라우저가 알아서 처리해 별도 visibilitychange/워치독 로직이 필요 없다.)
     function createTypingDotsElement(label) {
       const dotsEl = document.createElement('div');
       dotsEl.className = 'typing-dots';
       if (label) dotsEl.setAttribute('aria-label', label);
       for (let i = 0; i < 3; i++) {
-        const dot = document.createElement('span');
-        dot.style.transform = 'translate(' + SLOT_X[i] + 'px, 0px)';
-        dotsEl.appendChild(dot);
+        dotsEl.appendChild(document.createElement('span'));
       }
       return dotsEl;
     }
 
-    function startSwapLoadingAnimation(container, state) {
-      const dots = [];
-      for (let i = 0; i < container.children.length; i++) {
-        const dot = container.children[i];
-        if (dot && dot.tagName === 'SPAN') dots.push(dot);
-      }
-      if (dots.length < 3) return function() {};
-
-      const xPos = [SLOT_X[0], SLOT_X[1], SLOT_X[2]];
-      const pairs = [[0, 1], [1, 2], [0, 2]];
-      const BOUNCE_MS = 1100;
-      const MOVE_MS = 520;
-      const CYCLE_MS = BOUNCE_MS + MOVE_MS;
-      state.t0 = performance.now();
-      state.lastTick = state.t0;
-      state.hiddenAt = 0;
-      let committedCycle = -1;
-
-      function arcY(t, sign) {
-        return sign * 7 * 4 * t * (1 - t);
-      }
-
-      function easeInOut(t) {
-        return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-      }
-
-      dots.forEach((d, i) => {
-        d.style.transform = 'translate(' + xPos[i] + 'px, 0px)';
-      });
-
-      function tick(now) {
-        if (!state.alive) return;
-        if (!container.isConnected) {
-          state.alive = false;
-          typingAnimStates.delete(state);
-          return;
-        }
-
-        if (state.hiddenAt) {
-          state.t0 += now - state.hiddenAt;
-          state.hiddenAt = 0;
-        }
-
-        state.lastTick = now;
-        const elapsed = now - state.t0;
-        const cycleNum = Math.floor(elapsed / CYCLE_MS);
-        const local = elapsed - cycleNum * CYCLE_MS;
-        const pair = pairs[cycleNum % pairs.length];
-        const a = pair[0];
-        const b = pair[1];
-
-        if (local < BOUNCE_MS) {
-          const bounceT = local / 1000;
-          dots.forEach((d, i) => {
-            const y = Math.sin(bounceT * 4.2 + i * 0.85) * 4;
-            d.style.transform = 'translate(' + xPos[i] + 'px, ' + y + 'px)';
-          });
-        } else {
-          const st = Math.min(1, (local - BOUNCE_MS) / MOVE_MS);
-          const e = easeInOut(st);
-          const fromA = xPos[a];
-          const fromB = xPos[b];
-          const xA = fromA + (fromB - fromA) * e;
-          const xB = fromB + (fromA - fromB) * e;
-
-          dots.forEach((d, i) => {
-            let x = xPos[i];
-            let y = 0;
-            if (i === a) {
-              x = xA;
-              y = arcY(e, -1);
-            } else if (i === b) {
-              x = xB;
-              y = arcY(e, 1);
-            }
-            d.style.transform = 'translate(' + x + 'px, ' + y + 'px)';
-          });
-
-          if (st >= 1 && committedCycle !== cycleNum) {
-            const tmp = xPos[a];
-            xPos[a] = xPos[b];
-            xPos[b] = tmp;
-            committedCycle = cycleNum;
-          }
-        }
-
-        state.rafId = requestAnimationFrame(tick);
-      }
-
-      function stopInner() {
-        state.alive = false;
-        if (state.rafId) {
-          cancelAnimationFrame(state.rafId);
-          state.rafId = null;
-        }
-        typingAnimStates.delete(state);
-      }
-
-      state.rafId = requestAnimationFrame(tick);
-      typingAnimStates.add(state);
-      return stopInner;
-    }
-
+    // 예전 rAF 엔진을 쓰던 코드들과의 호환을 위해 이름은 유지하되, 실제로는
+    // CSS 애니메이션이 이미 돌고 있으므로 할 일이 없다(정지 함수만 돌려준다).
     function bootTypingAnimation(container) {
-      const state = {
-        alive: true,
-        container: container,
-        rafId: null,
-        bootIds: [],
-        stopInner: null,
-        t0: 0,
-        lastTick: 0,
-        hiddenAt: 0
-      };
-
-      const arm = () => {
-        if (!state.alive || !container.isConnected) return;
-        if (state.stopInner) state.stopInner();
-        state.stopInner = startSwapLoadingAnimation(container, state);
-      };
-
-      const id1 = requestAnimationFrame(() => {
-        if (!state.alive) return;
-        const id2 = requestAnimationFrame(arm);
-        state.bootIds.push(id2);
-      });
-      state.bootIds.push(id1);
-
-      return function stop() {
-        state.alive = false;
-        state.bootIds.forEach((id) => cancelAnimationFrame(id));
-        state.bootIds = [];
-        if (state.stopInner) state.stopInner();
-        typingAnimStates.delete(state);
-      };
+      return function stop() {};
     }
-
-    document.addEventListener('visibilitychange', () => {
-      const now = performance.now();
-      if (document.hidden) {
-        typingAnimStates.forEach((s) => {
-          if (s.alive && !s.hiddenAt) s.hiddenAt = now;
-        });
-        return;
-      }
-      typingAnimStates.forEach((s) => {
-        if (!s.alive) return;
-        if (s.hiddenAt) {
-          s.t0 += now - s.hiddenAt;
-          s.hiddenAt = 0;
-        }
-        if (!s.rafId && s.container && s.container.isConnected) {
-          s.stopInner = startSwapLoadingAnimation(s.container, s);
-        }
-      });
-    });
-
-    setInterval(() => {
-      const now = performance.now();
-      typingAnimStates.forEach((s) => {
-        if (!s.alive || !s.container || !s.container.isConnected) return;
-        if (now - s.lastTick > 1400) {
-          if (s.stopInner) s.stopInner();
-          s.stopInner = startSwapLoadingAnimation(s.container, s);
-        }
-      });
-    }, 700);
 
     function mountTypingLoader(parent) {
       parent.innerHTML = '';
       parent.classList.add('is-loading');
       const dotsEl = createTypingDotsElement('생각 중');
       parent.appendChild(dotsEl);
-      const stop = bootTypingAnimation(dotsEl);
       return function stopAll() {
-        stop();
         parent.classList.remove('is-loading');
       };
     }
@@ -3255,6 +3116,8 @@
       isRegenerating = true;
       syncRegenButtonsBusy();
       setSendLoading(true);
+      const controller = new AbortController();
+      activeAbortController = controller;
       wrap.classList.remove('actions-ready');
       wrap.classList.add('actions-pending');
 
@@ -3295,6 +3158,26 @@
                 appendAssistantReplyToStoredSession(sessionIdForRequest, finalText);
               }
             },
+            // 정지 버튼으로 직접 중단한 경우 - 그때까지 받은 내용을 그대로 새 버전으로 확정한다.
+            onAbort: () => {
+              if (!gotFirstToken) stopDots();
+              if (currentSessionId === sessionIdForRequest) {
+                const finalText = accumulated.trim();
+                const norm = normalizeAssistantMessage(entry);
+                if (finalText) {
+                  norm.versions.push(finalText);
+                  norm.versionIndex = norm.versions.length - 1;
+                  chatHistory[idx] = norm;
+                  setAssistantHtml(bubble, finalText);
+                  finalizeAssistantWrap(wrap);
+                  persistCurrentSession();
+                } else {
+                  setAssistantHtml(bubble, assistantActiveContent(norm));
+                  wrap.classList.remove('actions-pending');
+                  wrap.classList.add('actions-ready');
+                }
+              }
+            },
             onError: (message) => {
               if (!gotFirstToken) stopDots();
               if (currentSessionId === sessionIdForRequest) {
@@ -3306,7 +3189,8 @@
               }
               console.error('[MinsuGPT]', message);
             }
-          }
+          },
+          controller.signal
         );
       } catch (err) {
         if (!gotFirstToken) stopDots();
@@ -3319,6 +3203,7 @@
         }
         console.error('[MinsuGPT]', err);
       } finally {
+        if (activeAbortController === controller) activeAbortController = null;
         isRegenerating = false;
         syncRegenButtonsBusy();
         setSendLoading(false);
@@ -3708,16 +3593,44 @@
       checkPendingForSession(id).catch((err) => console.error('[MinsuGPT][pendingCheck]', err));
     }
 
+    // 전송 버튼은 상태에 따라 세 모습을 오간다.
+    // hidden: 입력이 비어있을 때 (폭 0으로 접힘, 클릭 불가)
+    // ready:  입력이 있을 때 (그라데이션 알약, 전송 아이콘)
+    // stop:   응답을 기다리는 중 (검정 알약, 안쪽이 채워진 사각형 정지 아이콘 → 누르면 응답 중단)
+    const SEND_BTN_SIZE_CLASSES = ['min-w-[54px]', 'px-4', 'ml-1.5', 'opacity-100'];
+    const SEND_BTN_HIDDEN_CLASSES = ['w-0', 'min-w-0', 'px-0', 'ml-0', 'opacity-0', 'pointer-events-none', 'bg-gray-100', 'text-gray-400', 'cursor-not-allowed'];
+    const SEND_BTN_READY_CLASSES = ['send-btn-gradient', 'text-white', 'cursor-pointer'];
+    const SEND_BTN_STOP_CLASSES = ['bg-gray-900', 'text-white', 'cursor-pointer'];
+
+    function setSendBtnState(state) {
+      sendBtn.classList.remove(
+        ...SEND_BTN_HIDDEN_CLASSES, ...SEND_BTN_READY_CLASSES, ...SEND_BTN_STOP_CLASSES, ...SEND_BTN_SIZE_CLASSES
+      );
+      if (state === 'hidden') {
+        sendBtn.disabled = true;
+        sendBtn.classList.add(...SEND_BTN_HIDDEN_CLASSES);
+      } else {
+        sendBtn.disabled = false;
+        sendBtn.classList.add(...SEND_BTN_SIZE_CLASSES, ...(state === 'stop' ? SEND_BTN_STOP_CLASSES : SEND_BTN_READY_CLASSES));
+      }
+      if (sendBtnIcon) {
+        sendBtnIcon.setAttribute('icon', state === 'stop' ? iconNameMap('square-stop') : iconNameMap('send'));
+      }
+    }
+
     function setSendLoading(loading) {
       isSending = loading;
       syncRegenButtonsBusy();
-      sendBtn.disabled = loading || chatInput.value.trim().length === 0;
       if (loading) {
-        sendBtn.classList.add('opacity-60', 'pointer-events-none');
+        setSendBtnState('stop');
       } else {
-        sendBtn.classList.remove('opacity-60', 'pointer-events-none');
-        chatInput.dispatchEvent(new Event('input'));
+        setSendBtnState(chatInput.value.trim().length > 0 ? 'ready' : 'hidden');
       }
+    }
+
+    // 응답을 기다리는 중(정지 버튼 상태)에 사용자가 클릭하면 진행 중인 스트림을 끊는다.
+    function stopGeneration() {
+      if (activeAbortController) activeAbortController.abort();
     }
 
     async function sendMessage(overrideText) {
@@ -3752,6 +3665,8 @@
         chatInput.style.height = '24px';
       }
       setSendLoading(true);
+      const controller = new AbortController();
+      activeAbortController = controller;
 
       const sessionIdForRequest = currentSessionId;
       const assistantResult = appendMessage('assistant', '', {
@@ -3797,6 +3712,24 @@
                 appendAssistantReplyToStoredSession(sessionIdForRequest, finalText);
               }
             },
+            // 정지 버튼으로 사용자가 직접 중단한 경우 - 오류가 아니라 그때까지 받은 내용을 그대로 확정한다.
+            onAbort: () => {
+              if (!gotFirstToken) stopDots();
+              if (currentSessionId === sessionIdForRequest) {
+                const finalText = accumulated.trim();
+                if (finalText) {
+                  setAssistantHtml(bubble, finalText);
+                  chatHistory.push({ role: 'assistant', versions: [finalText], versionIndex: 0 });
+                  assistantWrap._historyIndex = chatHistory.length - 1;
+                  finalizeAssistantWrap(assistantWrap);
+                  persistCurrentSession();
+                } else {
+                  assistantWrap.remove();
+                }
+              } else {
+                assistantWrap.remove();
+              }
+            },
             onError: (message) => {
               if (!gotFirstToken) stopDots();
               if (currentSessionId === sessionIdForRequest) {
@@ -3807,7 +3740,8 @@
               }
               console.error('[MinsuGPT]', message);
             }
-          }
+          },
+          controller.signal
         );
       } catch (err) {
         if (!gotFirstToken) stopDots();
@@ -3817,6 +3751,7 @@
         }
         console.error('[MinsuGPT]', err);
       } finally {
+        if (activeAbortController === controller) activeAbortController = null;
         setSendLoading(false);
         scrollChatToBottom();
         chatInput.focus();
@@ -4046,14 +3981,9 @@
     }, { passive: true });
 
     chatInput.addEventListener('input', function() {
-      if (this.value.trim().length > 0) {
-        sendBtn.disabled = false;
-        sendBtn.classList.remove('w-0', 'min-w-0', 'px-0', 'ml-0', 'opacity-0', 'pointer-events-none', 'bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
-        sendBtn.classList.add('min-w-[54px]', 'px-4', 'ml-1.5', 'opacity-100', 'send-btn-gradient', 'text-white', 'cursor-pointer');
-      } else {
-        sendBtn.disabled = true;
-        sendBtn.classList.remove('min-w-[54px]', 'px-4', 'ml-1.5', 'opacity-100', 'send-btn-gradient', 'text-white', 'cursor-pointer');
-        sendBtn.classList.add('w-0', 'min-w-0', 'px-0', 'ml-0', 'opacity-0', 'pointer-events-none', 'bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
+      // 응답을 기다리는 중(정지 버튼 상태)에는 입력창을 만져도 버튼 모양을 바꾸지 않는다.
+      if (!isSending) {
+        setSendBtnState(this.value.trim().length > 0 ? 'ready' : 'hidden');
       }
 
       this.style.height = '24px';
@@ -4061,7 +3991,10 @@
       this.style.height = (this.value === '') ? '24px' : nextHeight + 'px';
     });
 
-    sendBtn.addEventListener('click', () => sendMessage());
+    sendBtn.addEventListener('click', () => {
+      if (isSending) { stopGeneration(); return; }
+      sendMessage();
+    });
 
     // 모바일(가상 키보드)에서는 Enter가 항상 줄바꿈이고, 전송은 버튼으로만 한다.
     // 데스크탑은 기존과 동일하게 Enter로 전송, Shift+Enter로 줄바꿈한다.

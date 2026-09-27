@@ -183,16 +183,44 @@ async function streamAssistantReply(bubble, fullText) {
       checkPendingForSession(id).catch((err) => console.error('[MinsuGPT][pendingCheck]', err));
     }
 
+    // 전송 버튼은 상태에 따라 세 모습을 오간다.
+    // hidden: 입력이 비어있을 때 (폭 0으로 접힘, 클릭 불가)
+    // ready:  입력이 있을 때 (그라데이션 알약, 전송 아이콘)
+    // stop:   응답을 기다리는 중 (검정 알약, 안쪽이 채워진 사각형 정지 아이콘 → 누르면 응답 중단)
+    const SEND_BTN_SIZE_CLASSES = ['min-w-[54px]', 'px-4', 'ml-1.5', 'opacity-100'];
+    const SEND_BTN_HIDDEN_CLASSES = ['w-0', 'min-w-0', 'px-0', 'ml-0', 'opacity-0', 'pointer-events-none', 'bg-gray-100', 'text-gray-400', 'cursor-not-allowed'];
+    const SEND_BTN_READY_CLASSES = ['send-btn-gradient', 'text-white', 'cursor-pointer'];
+    const SEND_BTN_STOP_CLASSES = ['bg-gray-900', 'text-white', 'cursor-pointer'];
+
+    function setSendBtnState(state) {
+      sendBtn.classList.remove(
+        ...SEND_BTN_HIDDEN_CLASSES, ...SEND_BTN_READY_CLASSES, ...SEND_BTN_STOP_CLASSES, ...SEND_BTN_SIZE_CLASSES
+      );
+      if (state === 'hidden') {
+        sendBtn.disabled = true;
+        sendBtn.classList.add(...SEND_BTN_HIDDEN_CLASSES);
+      } else {
+        sendBtn.disabled = false;
+        sendBtn.classList.add(...SEND_BTN_SIZE_CLASSES, ...(state === 'stop' ? SEND_BTN_STOP_CLASSES : SEND_BTN_READY_CLASSES));
+      }
+      if (sendBtnIcon) {
+        sendBtnIcon.setAttribute('icon', state === 'stop' ? iconNameMap('square-stop') : iconNameMap('send'));
+      }
+    }
+
     function setSendLoading(loading) {
       isSending = loading;
       syncRegenButtonsBusy();
-      sendBtn.disabled = loading || chatInput.value.trim().length === 0;
       if (loading) {
-        sendBtn.classList.add('opacity-60', 'pointer-events-none');
+        setSendBtnState('stop');
       } else {
-        sendBtn.classList.remove('opacity-60', 'pointer-events-none');
-        chatInput.dispatchEvent(new Event('input'));
+        setSendBtnState(chatInput.value.trim().length > 0 ? 'ready' : 'hidden');
       }
+    }
+
+    // 응답을 기다리는 중(정지 버튼 상태)에 사용자가 클릭하면 진행 중인 스트림을 끊는다.
+    function stopGeneration() {
+      if (activeAbortController) activeAbortController.abort();
     }
 
     async function sendMessage(overrideText) {
@@ -227,6 +255,8 @@ async function streamAssistantReply(bubble, fullText) {
         chatInput.style.height = '24px';
       }
       setSendLoading(true);
+      const controller = new AbortController();
+      activeAbortController = controller;
 
       const sessionIdForRequest = currentSessionId;
       const assistantResult = appendMessage('assistant', '', {
@@ -272,6 +302,24 @@ async function streamAssistantReply(bubble, fullText) {
                 appendAssistantReplyToStoredSession(sessionIdForRequest, finalText);
               }
             },
+            // 정지 버튼으로 사용자가 직접 중단한 경우 - 오류가 아니라 그때까지 받은 내용을 그대로 확정한다.
+            onAbort: () => {
+              if (!gotFirstToken) stopDots();
+              if (currentSessionId === sessionIdForRequest) {
+                const finalText = accumulated.trim();
+                if (finalText) {
+                  setAssistantHtml(bubble, finalText);
+                  chatHistory.push({ role: 'assistant', versions: [finalText], versionIndex: 0 });
+                  assistantWrap._historyIndex = chatHistory.length - 1;
+                  finalizeAssistantWrap(assistantWrap);
+                  persistCurrentSession();
+                } else {
+                  assistantWrap.remove();
+                }
+              } else {
+                assistantWrap.remove();
+              }
+            },
             onError: (message) => {
               if (!gotFirstToken) stopDots();
               if (currentSessionId === sessionIdForRequest) {
@@ -282,7 +330,8 @@ async function streamAssistantReply(bubble, fullText) {
               }
               console.error('[MinsuGPT]', message);
             }
-          }
+          },
+          controller.signal
         );
       } catch (err) {
         if (!gotFirstToken) stopDots();
@@ -292,6 +341,7 @@ async function streamAssistantReply(bubble, fullText) {
         }
         console.error('[MinsuGPT]', err);
       } finally {
+        if (activeAbortController === controller) activeAbortController = null;
         setSendLoading(false);
         scrollChatToBottom();
         chatInput.focus();
@@ -521,14 +571,9 @@ async function streamAssistantReply(bubble, fullText) {
     }, { passive: true });
 
     chatInput.addEventListener('input', function() {
-      if (this.value.trim().length > 0) {
-        sendBtn.disabled = false;
-        sendBtn.classList.remove('w-0', 'min-w-0', 'px-0', 'ml-0', 'opacity-0', 'pointer-events-none', 'bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
-        sendBtn.classList.add('min-w-[54px]', 'px-4', 'ml-1.5', 'opacity-100', 'send-btn-gradient', 'text-white', 'cursor-pointer');
-      } else {
-        sendBtn.disabled = true;
-        sendBtn.classList.remove('min-w-[54px]', 'px-4', 'ml-1.5', 'opacity-100', 'send-btn-gradient', 'text-white', 'cursor-pointer');
-        sendBtn.classList.add('w-0', 'min-w-0', 'px-0', 'ml-0', 'opacity-0', 'pointer-events-none', 'bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
+      // 응답을 기다리는 중(정지 버튼 상태)에는 입력창을 만져도 버튼 모양을 바꾸지 않는다.
+      if (!isSending) {
+        setSendBtnState(this.value.trim().length > 0 ? 'ready' : 'hidden');
       }
 
       this.style.height = '24px';
@@ -536,7 +581,10 @@ async function streamAssistantReply(bubble, fullText) {
       this.style.height = (this.value === '') ? '24px' : nextHeight + 'px';
     });
 
-    sendBtn.addEventListener('click', () => sendMessage());
+    sendBtn.addEventListener('click', () => {
+      if (isSending) { stopGeneration(); return; }
+      sendMessage();
+    });
 
     // 모바일(가상 키보드)에서는 Enter가 항상 줄바꿈이고, 전송은 버튼으로만 한다.
     // 데스크탑은 기존과 동일하게 Enter로 전송, Shift+Enter로 줄바꿈한다.

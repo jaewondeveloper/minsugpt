@@ -20,6 +20,7 @@ function iconNameMap(name) {
         check: 'tabler:check',
         'trash-2': 'tabler:trash-filled',
         send: 'heroicons:paper-airplane-20-solid',
+        'square-stop': 'heroicons:stop-20-solid',
         'thumb-up': 'tabler:thumb-up',
         'thumb-down': 'tabler:thumb-down',
         'refresh-cw': 'tabler:refresh',
@@ -107,14 +108,13 @@ function iconNameMap(name) {
     const AUTH_VERIFY_INTERVAL_MS = 15000;
     const NORMAL_LOGIN_MS = 24 * 60 * 60 * 1000;
     const STORAGE_KEY = 'minsugpt_chats_v1';
-    const SLOT_X = [0, 11, 22];
 
     let chatHistory = [];
     let currentSessionId = null;
     let isSending = false;
     let isRegenerating = false;
+    let activeAbortController = null; // 지금 스트리밍 중인 요청의 컨트롤러(정지 버튼용)
     let loadingAnimStop = null;
-    const typingAnimStates = new Set();
 
     function loginPageUrl() {
       return resolveLoginUrlFromApp();
@@ -363,7 +363,12 @@ function iconNameMap(name) {
       } catch (err) {
         if (!finished) {
           finished = true;
-          handlers.onError && handlers.onError(describeNetworkError('AI 응답 스트림을 읽는 중 연결이 끊겼습니다', method, url, err));
+          // 사용자가 '정지' 버튼을 눌러 fetch를 abort한 경우 - 오류가 아니라 정상적인 중단이다.
+          if (err && err.name === 'AbortError') {
+            handlers.onAbort && handlers.onAbort();
+          } else {
+            handlers.onError && handlers.onError(describeNetworkError('AI 응답 스트림을 읽는 중 연결이 끊겼습니다', method, url, err));
+          }
         }
         return;
       }
@@ -377,16 +382,20 @@ function iconNameMap(name) {
       }
     }
 
-    async function requestAiChatStream(body, handlers) {
+    // signal(AbortSignal)을 넘기면 '정지' 버튼으로 도중에 취소할 수 있다.
+    // abort는 오류가 아니라 handlers.onAbort로 별도 보고한다.
+    async function requestAiChatStream(body, handlers, signal) {
       const url = API_BASE + AI_CHAT_PATH;
       let res;
       try {
         res = await fetch(url, {
           method: 'POST',
           headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
-          body: JSON.stringify(body)
+          body: JSON.stringify(body),
+          signal
         });
       } catch (err) {
+        if (err && err.name === 'AbortError') { handlers.onAbort && handlers.onAbort(); return; }
         handlers.onError && handlers.onError(describeNetworkError('AI 백엔드에 연결하지 못했습니다', 'POST', url, err));
         return;
       }
@@ -397,15 +406,17 @@ function iconNameMap(name) {
       await consumeSSEWithDiagnostics(res, handlers, 'POST', url);
     }
 
-    async function reattachToJobStream(jobId, handlers) {
+    async function reattachToJobStream(jobId, handlers, signal) {
       const url = API_BASE + AI_CHAT_STREAM_PATH + encodeURIComponent(jobId);
       let res;
       try {
         res = await fetch(url, {
           method: 'GET',
-          headers: authHeaders()
+          headers: authHeaders(),
+          signal
         });
       } catch (err) {
+        if (err && err.name === 'AbortError') { handlers.onAbort && handlers.onAbort(); return; }
         handlers.onError && handlers.onError(describeNetworkError('진행 중인 답변 스트림에 다시 연결하지 못했습니다', 'GET', url, err));
         return;
       }
@@ -653,6 +664,7 @@ function iconNameMap(name) {
     const chatHistoryList = document.getElementById('chat-history-list');
     const chatInput = document.getElementById('chat-input');
     const sendBtn = document.getElementById('send-btn');
+    const sendBtnIcon = sendBtn.querySelector('iconify-icon, [data-lucide]');
     const mainPanel = document.getElementById('main-panel');
     const welcomeBlock = document.getElementById('welcome-block');
     const chatMessages = document.getElementById('chat-messages');
@@ -911,9 +923,9 @@ function iconNameMap(name) {
         loading.className = 'history-loading-wrap';
         loading.innerHTML = `
           <div class="typing-dots" aria-label="채팅 기록 로딩 중">
-            <span style="transform: translate(0px, 0px)"></span>
-            <span style="transform: translate(11px, 0px)"></span>
-            <span style="transform: translate(22px, 0px)"></span>
+            <span></span>
+            <span></span>
+            <span></span>
           </div>
         `;
         chatHistoryList.appendChild(loading);
