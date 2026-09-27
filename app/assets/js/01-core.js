@@ -19,6 +19,7 @@ function iconNameMap(name) {
         copy: 'tabler:copy',
         check: 'tabler:check',
         'trash-2': 'tabler:trash-filled',
+        send: 'heroicons:paper-airplane-20-solid',
         'thumb-up': 'tabler:thumb-up',
         'thumb-down': 'tabler:thumb-down',
         'refresh-cw': 'tabler:refresh',

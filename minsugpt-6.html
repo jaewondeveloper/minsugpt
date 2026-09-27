@@ -144,13 +144,24 @@
       justify-content: center;
     }
 
-    /* 전송 버튼 - 노란색→파란색 그라데이션 알약(pill) 버튼 */
+    /* 전송 버튼 - 노란색→파란색 그라데이션 알약(pill) 버튼. 그림자는 넣지 않는다. */
     #send-btn.send-btn-gradient {
       background: linear-gradient(135deg, #ffd93d 0%, #4dabff 100%);
-      box-shadow: 0 3px 10px rgba(77, 171, 255, 0.35);
+      box-shadow: none;
     }
     #send-btn.send-btn-gradient:active {
       filter: brightness(0.95);
+    }
+    /* 입력 전에는 폭 0으로 접혀 있다가, 입력이 생기면 '사고 모델' 버튼 옆으로 부드럽게 펼쳐진다 */
+    #send-btn {
+      overflow: hidden;
+      transition: width 0.32s cubic-bezier(0.34, 1.1, 0.4, 1),
+                  min-width 0.32s cubic-bezier(0.34, 1.1, 0.4, 1),
+                  padding 0.32s cubic-bezier(0.34, 1.1, 0.4, 1),
+                  margin-left 0.32s cubic-bezier(0.34, 1.1, 0.4, 1),
+                  opacity 0.22s ease,
+                  background 0.15s ease,
+                  transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
 
     /* AI 말풍선에 스트리밍으로 표시되는 오류 메시지 톤 */
@@ -1385,12 +1396,12 @@
             <i data-lucide="chevron-down" class="w-3 h-3"></i>
           </div>
           
-          <button 
+          <button
             id="send-btn"
             disabled
-            class="px-5 h-9 min-w-[64px] min-h-[36px] rounded-full flex items-center justify-center gap-1.5 bg-gray-100 text-gray-400 cursor-not-allowed transition-all duration-300"
+            class="w-0 min-w-0 h-9 min-h-[36px] px-0 ml-0 rounded-full flex items-center justify-center bg-gray-100 text-gray-400 opacity-0 pointer-events-none cursor-not-allowed"
           >
-            <iconify-icon icon="mdi:send" class="text-[16px]"></iconify-icon>
+            <i data-lucide="send" class="w-4 h-4 shrink-0"></i>
           </button>
         </div>
       </div>
@@ -1483,6 +1494,7 @@
         copy: 'tabler:copy',
         check: 'tabler:check',
         'trash-2': 'tabler:trash-filled',
+        send: 'heroicons:paper-airplane-20-solid',
         'thumb-up': 'tabler:thumb-up',
         'thumb-down': 'tabler:thumb-down',
         'refresh-cw': 'tabler:refresh',
@@ -4036,23 +4048,26 @@
     chatInput.addEventListener('input', function() {
       if (this.value.trim().length > 0) {
         sendBtn.disabled = false;
-        sendBtn.classList.remove('bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
-        sendBtn.classList.add('send-btn-gradient', 'text-white', 'cursor-pointer', 'shadow-sm');
+        sendBtn.classList.remove('w-0', 'min-w-0', 'px-0', 'ml-0', 'opacity-0', 'pointer-events-none', 'bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
+        sendBtn.classList.add('min-w-[54px]', 'px-4', 'ml-1.5', 'opacity-100', 'send-btn-gradient', 'text-white', 'cursor-pointer');
       } else {
         sendBtn.disabled = true;
-        sendBtn.classList.remove('send-btn-gradient', 'text-white', 'cursor-pointer', 'shadow-sm');
-        sendBtn.classList.add('bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
+        sendBtn.classList.remove('min-w-[54px]', 'px-4', 'ml-1.5', 'opacity-100', 'send-btn-gradient', 'text-white', 'cursor-pointer');
+        sendBtn.classList.add('w-0', 'min-w-0', 'px-0', 'ml-0', 'opacity-0', 'pointer-events-none', 'bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
       }
 
-      this.style.height = '24px'; 
+      this.style.height = '24px';
       let nextHeight = this.scrollHeight;
       this.style.height = (this.value === '') ? '24px' : nextHeight + 'px';
     });
 
     sendBtn.addEventListener('click', () => sendMessage());
 
+    // 모바일(가상 키보드)에서는 Enter가 항상 줄바꿈이고, 전송은 버튼으로만 한다.
+    // 데스크탑은 기존과 동일하게 Enter로 전송, Shift+Enter로 줄바꿈한다.
     chatInput.addEventListener('keydown', function(e) {
       if (e.key === 'Enter' && !e.shiftKey) {
+        if (isMobile() || e.isComposing) return;
         e.preventDefault();
         if (this.value.trim().length > 0) sendMessage();
       }
