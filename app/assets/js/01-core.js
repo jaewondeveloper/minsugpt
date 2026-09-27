@@ -26,7 +26,19 @@ function iconNameMap(name) {
         'refresh-cw': 'tabler:refresh',
         'chevron-left': 'tabler:chevron-left',
         'chevron-right': 'tabler:chevron-right',
-        'logout-2': 'tabler:logout-2'
+        'logout-2': 'tabler:logout-2',
+        image: 'tabler:photo-filled',
+        file: 'tabler:file-filled',
+        camera: 'tabler:camera-filled',
+        brain: 'mdi:brain',
+        'list-check': 'mdi:format-list-checks',
+        download: 'tabler:download',
+        'code-tool': 'mdi:code-braces-box',
+        'web-tool': 'mdi:web',
+        'link-tool': 'mdi:link-variant',
+        'read-tool': 'mdi:file-eye-outline',
+        'edit-tool': 'mdi:file-edit-outline',
+        'get-tool': 'mdi:file-download-outline'
       };
       return map[name] || 'tabler:circle-filled';
     }
@@ -114,6 +126,11 @@ function iconNameMap(name) {
     let isSending = false;
     let isRegenerating = false;
     let activeAbortController = null; // 지금 스트리밍 중인 요청의 컨트롤러(정지 버튼용)
+
+    // ── 파일 첨부 / 생각 더 하기 / 검색 토글 상태 ──
+    let attachedFiles = []; // [{file_id, filename, kind, size_bytes, previewUrl}]
+    let reasoningEffortOn = false;
+    let searchOn = false;
     let loadingAnimStop = null;
 
     function loginPageUrl() {
@@ -307,6 +324,9 @@ function iconNameMap(name) {
       if (!payload || !payload.type) return;
       if (payload.type === 'meta' && handlers.onMeta) handlers.onMeta(payload.job_id);
       else if (payload.type === 'token' && handlers.onToken) handlers.onToken(payload.content || '');
+      else if (payload.type === 'tool' && handlers.onTool) {
+        handlers.onTool({ tool: payload.tool || '', detail: payload.detail || '', file_id: payload.file_id || null });
+      }
       else if (payload.type === 'done' && handlers.onDone) handlers.onDone();
       else if (payload.type === 'error' && handlers.onError) {
         handlers.onError(formatErrorDetail('AI 백엔드가 스트림 중 오류를 보냈습니다', [
@@ -597,14 +617,16 @@ function iconNameMap(name) {
 
     function normalizeAssistantMessage(m) {
       if (m.role !== 'assistant') return m;
+      const toolLog = Array.isArray(m.toolLog) ? m.toolLog : [];
+      const editedFiles = Array.isArray(m.editedFiles) ? m.editedFiles : [];
       if (m.versions && m.versions.length) {
         const versionIndex = typeof m.versionIndex === 'number'
           ? Math.max(0, Math.min(m.versionIndex, m.versions.length - 1))
           : m.versions.length - 1;
-        return { role: 'assistant', versions: m.versions.slice(), versionIndex };
+        return { role: 'assistant', versions: m.versions.slice(), versionIndex, toolLog, editedFiles };
       }
       const content = m.content || '';
-      return { role: 'assistant', versions: [content], versionIndex: 0 };
+      return { role: 'assistant', versions: [content], versionIndex: 0, toolLog, editedFiles };
     }
 
     function normalizeHistoryMessage(m) {
@@ -635,7 +657,9 @@ function iconNameMap(name) {
           return {
             role: 'assistant',
             versions: norm.versions,
-            versionIndex: norm.versionIndex
+            versionIndex: norm.versionIndex,
+            toolLog: norm.toolLog,
+            editedFiles: norm.editedFiles
           };
         }
         return { role: 'user', content: m.content };
@@ -680,6 +704,22 @@ function iconNameMap(name) {
     const chatInput = document.getElementById('chat-input');
     const sendBtn = document.getElementById('send-btn');
     const sendBtnIcon = sendBtn.querySelector('iconify-icon, [data-lucide]');
+    const attachBtn = document.getElementById('attach-btn');
+    const attachPanel = document.getElementById('attach-panel');
+    const attachChipRow = document.getElementById('attach-chip-row');
+    const activeToggleIcons = document.getElementById('active-toggle-icons');
+    const attachPanelClose = document.getElementById('attach-panel-close');
+    const attachPickPhoto = document.getElementById('attach-pick-photo');
+    const attachPickFile = document.getElementById('attach-pick-file');
+    const attachPickCamera = document.getElementById('attach-pick-camera');
+    const attachFilePhoto = document.getElementById('attach-file-photo');
+    const attachFileGeneric = document.getElementById('attach-file-generic');
+    const attachFileCamera = document.getElementById('attach-file-camera');
+    const toggleReasoningBtn = document.getElementById('toggle-reasoning');
+    const toggleSearchBtn = document.getElementById('toggle-search');
+    const toolLogModal = document.getElementById('tool-log-modal');
+    const toolLogList = document.getElementById('tool-log-list');
+    const toolLogClose = document.getElementById('tool-log-close');
     const mainPanel = document.getElementById('main-panel');
     const welcomeBlock = document.getElementById('welcome-block');
     const chatMessages = document.getElementById('chat-messages');
@@ -1362,7 +1402,9 @@ function iconNameMap(name) {
           historyIndex: i,
           versions: norm.versions,
           versionIndex: norm.versionIndex,
-          sourceUserText: prevUser
+          sourceUserText: prevUser,
+          toolLog: norm.toolLog,
+          editedFiles: norm.editedFiles
         });
       });
       updateUserActionVisibility();

@@ -261,6 +261,400 @@ let userMessageMenuTarget = null;
       };
     }
 
+    // ══════════════════════════════════════════════════════════════
+    // 작업 내역(도구 사용 로그) - SSE "tool" 이벤트를 실시간으로 보여주고,
+    // 채팅 기록에 함께 저장해서 새로고침해도 남아있게 한다.
+    // ══════════════════════════════════════════════════════════════
+    const TOOL_PAST_LABELS = {
+      execute_python: '코드를 실행했습니다',
+      web_search: '웹을 검색했습니다',
+      fetch_page: '페이지를 가져왔습니다',
+      read_file: '파일을 읽었습니다',
+      edit_file: '파일을 수정했습니다',
+      get_file_content: '파일 내용을 가져왔습니다'
+    };
+    const TOOL_ICON_KEYS = {
+      execute_python: 'code-tool',
+      web_search: 'web-tool',
+      fetch_page: 'link-tool',
+      read_file: 'read-tool',
+      edit_file: 'edit-tool',
+      get_file_content: 'get-tool'
+    };
+
+    function toolPastLabel(evt) {
+      return TOOL_PAST_LABELS[evt.tool] || (evt.detail || '작업을 완료했습니다');
+    }
+
+    // detail 문구("파일 읽는 중: calc.py (12~40줄)")에서 파일명만 뽑아낸다.
+    function extractFilenameFromDetail(detail) {
+      if (!detail) return null;
+      const m = String(detail).match(/:\s*([^\s():,]+)/);
+      return m ? m[1] : null;
+    }
+
+    function collectEditedFiles(log) {
+      const map = new Map();
+      (log || []).forEach((evt) => {
+        if (evt.tool === 'edit_file' && evt.file_id) {
+          map.set(evt.file_id, { file_id: evt.file_id, filename: extractFilenameFromDetail(evt.detail) || evt.file_id });
+        }
+      });
+      return Array.from(map.values());
+    }
+
+    function setToolLogButtonLive(btn, live, detailText) {
+      if (!btn) return;
+      const text = btn.querySelector('.tool-log-btn-text');
+      btn.classList.toggle('is-live', !!live);
+      if (!text) return;
+      if (live && detailText) {
+        if (text.textContent !== detailText) {
+          text.textContent = detailText;
+          text.classList.remove('swap');
+          void text.offsetWidth; // 강제 리플로우 - 애니메이션이 처음부터 다시 재생되게
+          text.classList.add('swap');
+        }
+      } else if (!live) {
+        text.textContent = '작업 내역';
+        text.classList.remove('swap');
+      }
+    }
+
+    function createToolLogButton(log) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'tool-log-btn';
+      btn._toolLog = log;
+      const icon = document.createElement('iconify-icon');
+      icon.setAttribute('icon', iconNameMap('list-check'));
+      icon.setAttribute('aria-hidden', 'true');
+      const text = document.createElement('span');
+      text.className = 'tool-log-btn-text';
+      text.textContent = '작업 내역';
+      btn.appendChild(icon);
+      btn.appendChild(text);
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openToolLogModal(btn._toolLog);
+      });
+      return btn;
+    }
+
+    // 응답 하나를 생성하는 동안 들어오는 tool 이벤트를 모아서, 말풍선 위 버튼에
+    // 실시간으로 반영한다. 첫 토큰이 오면(markStreaming) 실시간 갱신은 멈추고
+    // 평범한 '작업 내역' 버튼으로 바뀐다.
+    function createLiveToolTracker(wrapEl) {
+      const log = [];
+      let btnEl = null;
+      let live = true;
+      function ensureBtn() {
+        if (!btnEl) {
+          btnEl = createToolLogButton(log);
+          wrapEl.insertBefore(btnEl, wrapEl.firstChild);
+        }
+        return btnEl;
+      }
+      return {
+        addEvent(evt) {
+          log.push(evt);
+          const btn = ensureBtn();
+          if (live) setToolLogButtonLive(btn, true, evt.detail || toolPastLabel(evt));
+        },
+        markStreaming() {
+          live = false;
+          if (btnEl) setToolLogButtonLive(btnEl, false);
+        },
+        getLog() { return log; },
+        getEditedFiles() { return collectEditedFiles(log); }
+      };
+    }
+
+    function openToolLogModal(log) {
+      if (!toolLogModal || !toolLogList) return;
+      toolLogList.innerHTML = '';
+      if (!log || !log.length) {
+        const empty = document.createElement('p');
+        empty.className = 'text-[12px] text-gray-400';
+        empty.textContent = '기록된 작업이 없습니다.';
+        toolLogList.appendChild(empty);
+      } else {
+        log.forEach((evt) => {
+          const item = document.createElement('div');
+          item.className = 'tool-log-item';
+          const iconWrap = document.createElement('div');
+          iconWrap.className = 'tool-log-item-icon';
+          const icon = document.createElement('iconify-icon');
+          icon.setAttribute('icon', iconNameMap(TOOL_ICON_KEYS[evt.tool] || 'list-check'));
+          iconWrap.appendChild(icon);
+          const body = document.createElement('div');
+          body.className = 'tool-log-item-body';
+          const p1 = document.createElement('p');
+          p1.textContent = toolPastLabel(evt); // 완료된 작업은 항상 과거형으로 표시
+          const p2 = document.createElement('p');
+          p2.textContent = evt.detail || '';
+          body.appendChild(p1);
+          body.appendChild(p2);
+          item.appendChild(iconWrap);
+          item.appendChild(body);
+          toolLogList.appendChild(item);
+        });
+      }
+      toolLogModal.classList.add('show');
+    }
+
+    function closeToolLogModal() {
+      if (toolLogModal) toolLogModal.classList.remove('show');
+    }
+
+    if (toolLogClose) toolLogClose.addEventListener('click', closeToolLogModal);
+    if (toolLogModal) {
+      toolLogModal.addEventListener('click', (e) => {
+        if (e.target === toolLogModal) closeToolLogModal();
+      });
+    }
+
+    function createToolFileResultsRow(editedFiles) {
+      const row = document.createElement('div');
+      row.className = 'tool-file-results';
+      (editedFiles || []).forEach((f) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'tool-file-btn';
+        const icon = document.createElement('iconify-icon');
+        icon.setAttribute('icon', iconNameMap('download'));
+        const label = document.createElement('span');
+        label.textContent = f.filename + ' 다운로드';
+        btn.appendChild(icon);
+        btn.appendChild(label);
+        btn.addEventListener('click', () => downloadEditedFile(f.file_id, f.filename));
+        row.appendChild(btn);
+      });
+      return row;
+    }
+
+    async function downloadEditedFile(fileId, filename) {
+      try {
+        const res = await fetch(API_BASE + '/api/file/' + encodeURIComponent(fileId), { headers: authHeaders() });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || ('파일을 가져오지 못했습니다 (HTTP ' + res.status + ')'));
+        }
+        const blob = new Blob([data.content || ''], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = data.filename || filename || 'download.txt';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+      } catch (err) {
+        console.error('[MinsuGPT][fileDownload]', err);
+        showError('파일을 다운로드하지 못했습니다: ' + (err.message || ''));
+        setTimeout(hideError, 2500);
+      }
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // 파일/이미지 첨부 업로드
+    // ══════════════════════════════════════════════════════════════
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const raw = String(reader.result || '');
+          const idx = raw.indexOf(',');
+          resolve(idx >= 0 ? raw.slice(idx + 1) : raw);
+        };
+        reader.onerror = () => reject(reader.error || new Error('파일을 읽지 못했습니다.'));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function renderAttachChips() {
+      if (!attachChipRow) return;
+      attachChipRow.innerHTML = '';
+      if (!attachedFiles.length) {
+        attachChipRow.classList.add('hidden');
+        return;
+      }
+      attachChipRow.classList.remove('hidden');
+      attachedFiles.forEach((f) => {
+        if (f.kind === 'image') {
+          const chip = document.createElement('div');
+          chip.className = 'attach-chip-image';
+          if (f.previewUrl) {
+            const img = document.createElement('img');
+            img.src = f.previewUrl;
+            img.alt = f.filename;
+            chip.appendChild(img);
+          }
+          const remove = document.createElement('div');
+          remove.className = 'attach-chip-remove';
+          const icon = document.createElement('iconify-icon');
+          icon.setAttribute('icon', iconNameMap('x'));
+          remove.appendChild(icon);
+          remove.addEventListener('click', () => removeAttachedFile(f.file_id));
+          chip.appendChild(remove);
+          attachChipRow.appendChild(chip);
+        } else {
+          const chip = document.createElement('div');
+          chip.className = 'attach-chip-file';
+          const icon = document.createElement('iconify-icon');
+          icon.setAttribute('icon', iconNameMap('file'));
+          const span = document.createElement('span');
+          span.textContent = f.filename;
+          const remove = document.createElement('div');
+          remove.className = 'attach-chip-remove';
+          const removeIcon = document.createElement('iconify-icon');
+          removeIcon.setAttribute('icon', iconNameMap('x'));
+          remove.appendChild(removeIcon);
+          remove.addEventListener('click', () => removeAttachedFile(f.file_id));
+          chip.appendChild(icon);
+          chip.appendChild(span);
+          chip.appendChild(remove);
+          attachChipRow.appendChild(chip);
+        }
+      });
+    }
+
+    function removeAttachedFile(fileId) {
+      const target = attachedFiles.find((f) => f.file_id === fileId);
+      if (target && target.previewUrl) URL.revokeObjectURL(target.previewUrl);
+      attachedFiles = attachedFiles.filter((f) => f.file_id !== fileId);
+      renderAttachChips();
+    }
+
+    function clearAttachedFiles() {
+      attachedFiles.forEach((f) => { if (f.previewUrl) URL.revokeObjectURL(f.previewUrl); });
+      attachedFiles = [];
+      renderAttachChips();
+    }
+
+    async function uploadPickedFile(file) {
+      if (!file) return;
+      if (!currentSessionId || !getSession(currentSessionId)) ensureSession('');
+      let base64;
+      try {
+        base64 = await fileToBase64(file);
+      } catch (err) {
+        showError('파일을 읽지 못했습니다: ' + (err.message || ''));
+        setTimeout(hideError, 2500);
+        return;
+      }
+      const url = API_BASE + '/api/upload';
+      let res;
+      try {
+        res = await fetch(url, {
+          method: 'POST',
+          headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+          body: JSON.stringify({
+            filename: file.name,
+            mime_type: file.type || 'application/octet-stream',
+            content_base64: base64,
+            session_id: currentSessionId
+          })
+        });
+      } catch (err) {
+        showError(describeNetworkError('파일 업로드에 실패했습니다', 'POST', url, err));
+        setTimeout(hideError, 3000);
+        return;
+      }
+      let data;
+      try { data = await res.json(); } catch { data = {}; }
+      if (!res.ok || !data.success) {
+        showError(data.error || ('파일 업로드에 실패했습니다 (HTTP ' + res.status + ')'));
+        setTimeout(hideError, 3000);
+        return;
+      }
+      const entry = {
+        file_id: data.file_id,
+        filename: data.filename || file.name,
+        kind: data.kind || (file.type && file.type.startsWith('image/') ? 'image' : 'text'),
+        size_bytes: data.size_bytes || file.size,
+        previewUrl: null
+      };
+      if (entry.kind === 'image') {
+        try { entry.previewUrl = URL.createObjectURL(file); } catch { /* 무시 */ }
+      }
+      attachedFiles.push(entry);
+      renderAttachChips();
+    }
+
+    async function handleFilePickInput(inputEl) {
+      const files = Array.from(inputEl.files || []);
+      inputEl.value = ''; // 같은 파일을 다시 선택해도 change 이벤트가 뜨도록
+      for (const file of files) {
+        await uploadPickedFile(file);
+      }
+    }
+
+    if (attachFilePhoto) attachFilePhoto.addEventListener('change', () => handleFilePickInput(attachFilePhoto));
+    if (attachFileGeneric) attachFileGeneric.addEventListener('change', () => handleFilePickInput(attachFileGeneric));
+    if (attachFileCamera) attachFileCamera.addEventListener('change', () => handleFilePickInput(attachFileCamera));
+
+    // ══════════════════════════════════════════════════════════════
+    // 첨부 패널(+ 버튼) / 생각 더 하기 / 검색 토글
+    // ══════════════════════════════════════════════════════════════
+    function isAttachPanelOpen() {
+      return !!(attachPanel && !attachPanel.classList.contains('hidden'));
+    }
+
+    function openAttachPanel() {
+      if (attachPanel) attachPanel.classList.remove('hidden');
+    }
+
+    function closeAttachPanel() {
+      if (attachPanel) attachPanel.classList.add('hidden');
+    }
+
+    function renderActiveToggleIcons() {
+      if (!activeToggleIcons) return;
+      activeToggleIcons.innerHTML = '';
+      const active = [];
+      if (reasoningEffortOn) active.push({ cls: 'reasoning', icon: iconNameMap('brain') });
+      if (searchOn) active.push({ cls: 'search', icon: iconNameMap('search') });
+      if (!active.length) {
+        activeToggleIcons.classList.add('hidden');
+        return;
+      }
+      activeToggleIcons.classList.remove('hidden');
+      active.forEach((a) => {
+        const span = document.createElement('span');
+        span.className = 'active-toggle-icon ' + a.cls;
+        const icon = document.createElement('iconify-icon');
+        icon.setAttribute('icon', a.icon);
+        span.appendChild(icon);
+        activeToggleIcons.appendChild(span);
+      });
+    }
+
+    function setReasoningEffort(on) {
+      reasoningEffortOn = !!on;
+      if (toggleReasoningBtn) toggleReasoningBtn.classList.toggle('active', reasoningEffortOn);
+      renderActiveToggleIcons();
+    }
+
+    function setSearchOn(on) {
+      searchOn = !!on;
+      if (toggleSearchBtn) toggleSearchBtn.classList.toggle('active', searchOn);
+      renderActiveToggleIcons();
+    }
+
+    if (attachBtn) {
+      attachBtn.addEventListener('click', () => {
+        if (isAttachPanelOpen()) closeAttachPanel();
+        else openAttachPanel();
+      });
+    }
+    if (attachPanelClose) attachPanelClose.addEventListener('click', closeAttachPanel);
+    if (attachPickPhoto) attachPickPhoto.addEventListener('click', () => attachFilePhoto && attachFilePhoto.click());
+    if (attachPickFile) attachPickFile.addEventListener('click', () => attachFileGeneric && attachFileGeneric.click());
+    if (attachPickCamera) attachPickCamera.addEventListener('click', () => attachFileCamera && attachFileCamera.click());
+    if (toggleReasoningBtn) toggleReasoningBtn.addEventListener('click', () => setReasoningEffort(!reasoningEffortOn));
+    if (toggleSearchBtn) toggleSearchBtn.addEventListener('click', () => setSearchOn(!searchOn));
+
     async function regenerateAssistantAtWrap(wrap, bubble) {
       if (isSending || isRegenerating) return;
       if (!wrap.classList.contains('latest-assistant')) return;
@@ -280,8 +674,11 @@ let userMessageMenuTarget = null;
       activeAbortController = controller;
       wrap.classList.remove('actions-ready');
       wrap.classList.add('actions-pending');
+      // 이전 버전의 작업 내역/파일 버튼이 남아있으면 지운다 - 재생성마다 새로 쌓는다.
+      wrap.querySelectorAll('.tool-log-btn, .tool-file-results').forEach((el) => el.remove());
 
       const stopDots = mountTypingLoader(bubble);
+      const toolTracker = createLiveToolTracker(wrap);
       const sessionIdForRequest = currentSessionId;
       let accumulated = '';
       let gotFirstToken = false;
@@ -295,8 +692,9 @@ let userMessageMenuTarget = null;
             system_prompt: AI_SYSTEM_PROMPT
           },
           {
+            onTool: (payload) => toolTracker.addEvent(payload),
             onToken: (chunk) => {
-              if (!gotFirstToken) { stopDots(); gotFirstToken = true; }
+              if (!gotFirstToken) { stopDots(); toolTracker.markStreaming(); gotFirstToken = true; }
               accumulated += chunk;
               if (currentSessionId === sessionIdForRequest) {
                 setAssistantHtml(bubble, accumulated);
@@ -308,9 +706,14 @@ let userMessageMenuTarget = null;
                 const norm = normalizeAssistantMessage(entry);
                 norm.versions.push(finalText);
                 norm.versionIndex = norm.versions.length - 1;
+                norm.toolLog = toolTracker.getLog();
+                norm.editedFiles = toolTracker.getEditedFiles();
                 chatHistory[idx] = norm;
 
                 setAssistantHtml(bubble, finalText);
+                if (norm.editedFiles.length) {
+                  wrap.appendChild(createToolFileResultsRow(norm.editedFiles));
+                }
                 triggerGradientWave();
                 finalizeAssistantWrap(wrap);
                 persistCurrentSession();
@@ -327,8 +730,13 @@ let userMessageMenuTarget = null;
                 if (finalText) {
                   norm.versions.push(finalText);
                   norm.versionIndex = norm.versions.length - 1;
+                  norm.toolLog = toolTracker.getLog();
+                  norm.editedFiles = toolTracker.getEditedFiles();
                   chatHistory[idx] = norm;
                   setAssistantHtml(bubble, finalText);
+                  if (norm.editedFiles.length) {
+                    wrap.appendChild(createToolFileResultsRow(norm.editedFiles));
+                  }
                   finalizeAssistantWrap(wrap);
                   persistCurrentSession();
                 } else {
