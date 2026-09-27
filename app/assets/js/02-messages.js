@@ -230,194 +230,33 @@ let userMessageMenuTarget = null;
       persistCurrentSession();
     }
 
+    // 점 3개 로딩 애니메이션은 순수 CSS @keyframes(typing-dot-bounce)로 돈다.
+    // (이전에는 requestAnimationFrame으로 매 프레임 좌표를 계산했는데, 메인 스레드가
+    // 잠깐 바쁘거나 tick 루프가 한 번이라도 끊기면 그 자리에서 멈춰버리는 문제가 있었다.
+    // CSS 애니메이션은 컴포지터가 돌리므로 JS가 멈춰도 끊기지 않고, 탭이 백그라운드로
+    // 가도 브라우저가 알아서 처리해 별도 visibilitychange/워치독 로직이 필요 없다.)
     function createTypingDotsElement(label) {
       const dotsEl = document.createElement('div');
       dotsEl.className = 'typing-dots';
       if (label) dotsEl.setAttribute('aria-label', label);
       for (let i = 0; i < 3; i++) {
-        const dot = document.createElement('span');
-        dot.style.transform = 'translate(' + SLOT_X[i] + 'px, 0px)';
-        dotsEl.appendChild(dot);
+        dotsEl.appendChild(document.createElement('span'));
       }
       return dotsEl;
     }
 
-    function startSwapLoadingAnimation(container, state) {
-      const dots = [];
-      for (let i = 0; i < container.children.length; i++) {
-        const dot = container.children[i];
-        if (dot && dot.tagName === 'SPAN') dots.push(dot);
-      }
-      if (dots.length < 3) return function() {};
-
-      const xPos = [SLOT_X[0], SLOT_X[1], SLOT_X[2]];
-      const pairs = [[0, 1], [1, 2], [0, 2]];
-      const BOUNCE_MS = 1100;
-      const MOVE_MS = 520;
-      const CYCLE_MS = BOUNCE_MS + MOVE_MS;
-      state.t0 = performance.now();
-      state.lastTick = state.t0;
-      state.hiddenAt = 0;
-      let committedCycle = -1;
-
-      function arcY(t, sign) {
-        return sign * 7 * 4 * t * (1 - t);
-      }
-
-      function easeInOut(t) {
-        return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-      }
-
-      dots.forEach((d, i) => {
-        d.style.transform = 'translate(' + xPos[i] + 'px, 0px)';
-      });
-
-      function tick(now) {
-        if (!state.alive) return;
-        if (!container.isConnected) {
-          state.alive = false;
-          typingAnimStates.delete(state);
-          return;
-        }
-
-        if (state.hiddenAt) {
-          state.t0 += now - state.hiddenAt;
-          state.hiddenAt = 0;
-        }
-
-        state.lastTick = now;
-        const elapsed = now - state.t0;
-        const cycleNum = Math.floor(elapsed / CYCLE_MS);
-        const local = elapsed - cycleNum * CYCLE_MS;
-        const pair = pairs[cycleNum % pairs.length];
-        const a = pair[0];
-        const b = pair[1];
-
-        if (local < BOUNCE_MS) {
-          const bounceT = local / 1000;
-          dots.forEach((d, i) => {
-            const y = Math.sin(bounceT * 4.2 + i * 0.85) * 4;
-            d.style.transform = 'translate(' + xPos[i] + 'px, ' + y + 'px)';
-          });
-        } else {
-          const st = Math.min(1, (local - BOUNCE_MS) / MOVE_MS);
-          const e = easeInOut(st);
-          const fromA = xPos[a];
-          const fromB = xPos[b];
-          const xA = fromA + (fromB - fromA) * e;
-          const xB = fromB + (fromA - fromB) * e;
-
-          dots.forEach((d, i) => {
-            let x = xPos[i];
-            let y = 0;
-            if (i === a) {
-              x = xA;
-              y = arcY(e, -1);
-            } else if (i === b) {
-              x = xB;
-              y = arcY(e, 1);
-            }
-            d.style.transform = 'translate(' + x + 'px, ' + y + 'px)';
-          });
-
-          if (st >= 1 && committedCycle !== cycleNum) {
-            const tmp = xPos[a];
-            xPos[a] = xPos[b];
-            xPos[b] = tmp;
-            committedCycle = cycleNum;
-          }
-        }
-
-        state.rafId = requestAnimationFrame(tick);
-      }
-
-      function stopInner() {
-        state.alive = false;
-        if (state.rafId) {
-          cancelAnimationFrame(state.rafId);
-          state.rafId = null;
-        }
-        typingAnimStates.delete(state);
-      }
-
-      state.rafId = requestAnimationFrame(tick);
-      typingAnimStates.add(state);
-      return stopInner;
-    }
-
+    // 예전 rAF 엔진을 쓰던 코드들과의 호환을 위해 이름은 유지하되, 실제로는
+    // CSS 애니메이션이 이미 돌고 있으므로 할 일이 없다(정지 함수만 돌려준다).
     function bootTypingAnimation(container) {
-      const state = {
-        alive: true,
-        container: container,
-        rafId: null,
-        bootIds: [],
-        stopInner: null,
-        t0: 0,
-        lastTick: 0,
-        hiddenAt: 0
-      };
-
-      const arm = () => {
-        if (!state.alive || !container.isConnected) return;
-        if (state.stopInner) state.stopInner();
-        state.stopInner = startSwapLoadingAnimation(container, state);
-      };
-
-      const id1 = requestAnimationFrame(() => {
-        if (!state.alive) return;
-        const id2 = requestAnimationFrame(arm);
-        state.bootIds.push(id2);
-      });
-      state.bootIds.push(id1);
-
-      return function stop() {
-        state.alive = false;
-        state.bootIds.forEach((id) => cancelAnimationFrame(id));
-        state.bootIds = [];
-        if (state.stopInner) state.stopInner();
-        typingAnimStates.delete(state);
-      };
+      return function stop() {};
     }
-
-    document.addEventListener('visibilitychange', () => {
-      const now = performance.now();
-      if (document.hidden) {
-        typingAnimStates.forEach((s) => {
-          if (s.alive && !s.hiddenAt) s.hiddenAt = now;
-        });
-        return;
-      }
-      typingAnimStates.forEach((s) => {
-        if (!s.alive) return;
-        if (s.hiddenAt) {
-          s.t0 += now - s.hiddenAt;
-          s.hiddenAt = 0;
-        }
-        if (!s.rafId && s.container && s.container.isConnected) {
-          s.stopInner = startSwapLoadingAnimation(s.container, s);
-        }
-      });
-    });
-
-    setInterval(() => {
-      const now = performance.now();
-      typingAnimStates.forEach((s) => {
-        if (!s.alive || !s.container || !s.container.isConnected) return;
-        if (now - s.lastTick > 1400) {
-          if (s.stopInner) s.stopInner();
-          s.stopInner = startSwapLoadingAnimation(s.container, s);
-        }
-      });
-    }, 700);
 
     function mountTypingLoader(parent) {
       parent.innerHTML = '';
       parent.classList.add('is-loading');
       const dotsEl = createTypingDotsElement('생각 중');
       parent.appendChild(dotsEl);
-      const stop = bootTypingAnimation(dotsEl);
       return function stopAll() {
-        stop();
         parent.classList.remove('is-loading');
       };
     }
@@ -437,6 +276,8 @@ let userMessageMenuTarget = null;
       isRegenerating = true;
       syncRegenButtonsBusy();
       setSendLoading(true);
+      const controller = new AbortController();
+      activeAbortController = controller;
       wrap.classList.remove('actions-ready');
       wrap.classList.add('actions-pending');
 
@@ -477,6 +318,26 @@ let userMessageMenuTarget = null;
                 appendAssistantReplyToStoredSession(sessionIdForRequest, finalText);
               }
             },
+            // 정지 버튼으로 직접 중단한 경우 - 그때까지 받은 내용을 그대로 새 버전으로 확정한다.
+            onAbort: () => {
+              if (!gotFirstToken) stopDots();
+              if (currentSessionId === sessionIdForRequest) {
+                const finalText = accumulated.trim();
+                const norm = normalizeAssistantMessage(entry);
+                if (finalText) {
+                  norm.versions.push(finalText);
+                  norm.versionIndex = norm.versions.length - 1;
+                  chatHistory[idx] = norm;
+                  setAssistantHtml(bubble, finalText);
+                  finalizeAssistantWrap(wrap);
+                  persistCurrentSession();
+                } else {
+                  setAssistantHtml(bubble, assistantActiveContent(norm));
+                  wrap.classList.remove('actions-pending');
+                  wrap.classList.add('actions-ready');
+                }
+              }
+            },
             onError: (message) => {
               if (!gotFirstToken) stopDots();
               if (currentSessionId === sessionIdForRequest) {
@@ -488,7 +349,8 @@ let userMessageMenuTarget = null;
               }
               console.error('[MinsuGPT]', message);
             }
-          }
+          },
+          controller.signal
         );
       } catch (err) {
         if (!gotFirstToken) stopDots();
@@ -501,6 +363,7 @@ let userMessageMenuTarget = null;
         }
         console.error('[MinsuGPT]', err);
       } finally {
+        if (activeAbortController === controller) activeAbortController = null;
         isRegenerating = false;
         syncRegenButtonsBusy();
         setSendLoading(false);
