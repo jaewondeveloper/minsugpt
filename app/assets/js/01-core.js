@@ -1336,10 +1336,23 @@ function iconNameMap(name) {
       ta.style.height = Math.min(240, Math.max(72, ta.scrollHeight)) + 'px';
     }
 
+    // 실제로 여러 줄이 됐는지(자동 줄바꿈이든 \n이든) 렌더링된 높이로 판단해서
+    // 알약(pill) ↔ 둥근 사각형 모양을 정한다. CSS만으로는 줄 수를 알 수 없다.
+    function updateUserBubbleShape(bubble) {
+      if (!bubble || bubble.style.display === 'none') return;
+      const cs = getComputedStyle(bubble);
+      const lineHeight = parseFloat(cs.lineHeight) || 20;
+      const paddingV = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+      const singleLineHeight = lineHeight + paddingV;
+      const isMultiline = bubble.scrollHeight > singleLineHeight + 1; // 1px 오차 허용
+      bubble.classList.toggle('multiline', isMultiline);
+    }
+
     function cancelUserInlineEdit(wrap, bubble, originalText) {
       wrap.classList.remove('is-editing');
       bubble.classList.remove('editing');
       bubble.textContent = originalText;
+      updateUserBubbleShape(bubble);
     }
 
     function startUserInlineEdit(wrap, bubble) {

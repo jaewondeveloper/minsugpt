@@ -711,6 +711,14 @@
       user-select: text;
       white-space: pre-wrap;
       overflow-wrap: break-word;
+      transition: border-radius 0.15s ease;
+    }
+    /* 줄바꿈이 생겨 여러 줄이 되면(가로로 길게 자동 줄바꿈된 것과 구분해서, 실제
+       개행 등으로 세로로 길어진 경우) 알약 모양 대신 둥근 사각형으로 바뀐다.
+       한 줄일 때 border-radius:9999px는 알약, 여러 줄이면 양 끝만 과하게 둥글어져
+       어색해 보이므로 20px 정도로 낮춘다. */
+    .msg-user.multiline {
+      border-radius: 20px;
     }
     .user-msg-wrap {
       display: flex;

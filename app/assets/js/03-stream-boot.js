@@ -118,6 +118,7 @@ async function streamAssistantReply(bubble, fullText) {
         }
       }
       chatMessages.appendChild(wrap);
+      if (role === 'user') updateUserBubbleShape(bubble); // DOM에 붙은 뒤라야 실제 줄 수를 잴 수 있다
       scrollChatToBottom();
       if (role === 'user') updateUserActionVisibility();
       if (role === 'assistant') updateAssistantActionVisibility();
