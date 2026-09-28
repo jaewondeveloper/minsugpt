@@ -722,6 +722,14 @@
       user-select: text;
       white-space: pre-wrap;
       overflow-wrap: break-word;
+      transition: border-radius 0.15s ease;
+    }
+    /* 줄바꿈이 생겨 여러 줄이 되면(가로로 길게 자동 줄바꿈된 것과 구분해서, 실제
+       개행 등으로 세로로 길어진 경우) 알약 모양 대신 둥근 사각형으로 바뀐다.
+       한 줄일 때 border-radius:9999px는 알약, 여러 줄이면 양 끝만 과하게 둥글어져
+       어색해 보이므로 20px 정도로 낮춘다. */
+    .msg-user.multiline {
+      border-radius: 20px;
     }
     .user-msg-wrap {
       display: flex;
@@ -3327,10 +3335,23 @@
       ta.style.height = Math.min(240, Math.max(72, ta.scrollHeight)) + 'px';
     }
 
+    // 실제로 여러 줄이 됐는지(자동 줄바꿈이든 \n이든) 렌더링된 높이로 판단해서
+    // 알약(pill) ↔ 둥근 사각형 모양을 정한다. CSS만으로는 줄 수를 알 수 없다.
+    function updateUserBubbleShape(bubble) {
+      if (!bubble || bubble.style.display === 'none') return;
+      const cs = getComputedStyle(bubble);
+      const lineHeight = parseFloat(cs.lineHeight) || 20;
+      const paddingV = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+      const singleLineHeight = lineHeight + paddingV;
+      const isMultiline = bubble.scrollHeight > singleLineHeight + 1; // 1px 오차 허용
+      bubble.classList.toggle('multiline', isMultiline);
+    }
+
     function cancelUserInlineEdit(wrap, bubble, originalText) {
       wrap.classList.remove('is-editing');
       bubble.classList.remove('editing');
       bubble.textContent = originalText;
+      updateUserBubbleShape(bubble);
     }
 
     function startUserInlineEdit(wrap, bubble) {
@@ -4544,6 +4565,7 @@
         }
       }
       chatMessages.appendChild(wrap);
+      if (role === 'user') updateUserBubbleShape(bubble); // DOM에 붙은 뒤라야 실제 줄 수를 잴 수 있다
       scrollChatToBottom();
       if (role === 'user') updateUserActionVisibility();
       if (role === 'assistant') updateAssistantActionVisibility();
